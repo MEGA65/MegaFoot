@@ -21,8 +21,9 @@
 #declare frm_idx = 0
 #declare frmw, frmh,frmx,frmy,frmx1,frmy1,frameidx,cdata_addr
 #declare yy, scraddr,clraddr
-#declare a$, lidx, k
+#declare a$, lidx, k, x, y
 #declare src_addr, dest_addr, length, transp
+#declare dest_mb_sel, dest_bank
 
 #declare xoffs(6) ' offset into cycling of graphic
 
@@ -44,6 +45,16 @@ draw_order(4) = 4
 draw_order(5) = 5
 draw_order(6) = 6
 
+#declare offs_amount(6)
+offs_amount(0) = .1
+offs_amount(1) = 0
+offs_amount(2) = .2
+offs_amount(3) = .3
+offs_amount(4) = .5
+offs_amount(5) = .8
+offs_amount(6) = 1
+
+
 gosub load_data
 
 .loop0
@@ -56,10 +67,12 @@ gosub load_data
 '---------------
 .transparent_dma
 '---------------
-  wpoke $40007, src_addr
-  wpoke $4000a, dest_addr
-  wpoke $40005, length
-  poke  $40002, transp
+  poke $40001, dest_mb_sel
+  wpoke $40009, src_addr
+  wpoke $4000c, dest_addr
+  poke $4000e, dest_bank
+  wpoke $40007, length
+  poke  $40004, transp
   poke $d702, 4 ' dma list in bank 4
   poke $d701, $00 ' dma list msb
   poke $d705, $00 ' dma list lsb
@@ -77,6 +90,7 @@ gosub load_data
 
 ^^bload "layers.bin",p($42000),r
   gosub init_petscii_frames
+  gosub repair_petscii_frames
   return
 
 '---------
@@ -88,18 +102,21 @@ gosub load_data
     poke $40000+k, 0
   next k
 
-  poke $40000, $07 ' opt = enable transparency
-  poke $40001, $86 ' opt = set transparency
-  poke $40002, $20 ' transparency value
-  poke $40003, $00 ' end of options
-  poke $40004, $00 ' CMD lsb = COPY
-  wpoke $40005, $0000 ' length
-  wpoke $40007, $1000 ' source addr
-  poke $40009, $04    ' source bank
-  wpoke $4000a, $1000 ' dest addr
-  poke $4000c, $04    ' dest bank
-  poke $4000d, $00    ' CMD msb (ignore)
-  wpoke $4000e, $0000 ' modulo (ignore)
+  poke $40000, $81 ' opt = dest addr MB selector
+  poke $40001, $00 ' default to 1st megabyte
+
+  poke $40002, $07 ' opt = enable transparency
+  poke $40003, $86 ' opt = set transparency
+  poke $40004, $20 ' transparency value
+  poke $40005, $00 ' end of options
+  poke $40006, $00 ' CMD lsb = COPY
+  wpoke $40007, $0000 ' length
+  wpoke $40009, $1000 ' source addr
+  poke $4000b, $04    ' source bank
+  wpoke $4000c, $1000 ' dest addr
+  poke $4000e, $04    ' dest bank
+  poke $4000f, $00    ' CMD msb (ignore)
+  wpoke $40010, $0000 ' modulo (ignore)
 
   return
 
@@ -128,6 +145,39 @@ gosub load_data
   return
 
 
+'---------------------
+.repair_petscii_frames
+'---------------------
+  frm_idx = 0
+
+  do while frm_idx < max_frames
+    data_addr = frame_addr(frm_idx)
+    frmx = peek(data_addr)
+    data_addr = data_addr + 1
+    frmy = peek(data_addr)
+    data_addr = data_addr + 1
+    frmw = peek(data_addr)
+    data_addr = data_addr + 1
+    frmh = peek(data_addr)
+    data_addr = data_addr + 1
+    cdata_addr = data_addr + frmw * frmh
+
+    frmx1=frmx+frmw-1
+    frmy1=frmy+frmh-1
+
+    for y = 0 to frmy1-frmy
+      for x = frmx to frmx1
+        if peek(data_addr + x + y * 80) = 32 then begin
+          poke(cdata_addr + x + y * 80), $ff
+        bend
+      next x
+    next y
+    
+    frm_idx = frm_idx + 1
+  loop
+
+  return
+
 '------------------
 .draw_petscii_frame
 '------------------
@@ -147,35 +197,54 @@ gosub load_data
   scraddr = $40800 + frmx + frmy * 80
   clraddr = $ff80000 + frmx + frmy * 80
   cdata_addr = data_addr + frmw * frmh
+
+  xoffs = xoffs(frameidx)
+
   for yy=frmy to frmy1
 
     ' from offset to end
     ' ------------------
-    if (frmw-xoffs) > 0 then begin
+    if int(frmw-xoffs) > 0 then begin
       ' edma 0, frmw-xoffs, data_addr, scraddr+xoffs
       src_addr = data_addr
       dest_addr = scraddr+xoffs
+      dest_bank = $04
+      dest_mb_sel = $00
       length = frmw-xoffs
       transp = 32
       gosub transparent_dma
 
-      edma 0, frmw-xoffs, cdata_addr, clraddr+xoffs
-      ' gosub transparent_dma
+      ' edma 0, frmw-xoffs, cdata_addr, clraddr+xoffs
+      src_addr = cdata_addr
+      dest_addr = clraddr+xoffs
+      dest_bank = $08
+      dest_mb_sel = $ff
+      length = frmw-xoffs
+      transp = $ff
+      gosub transparent_dma
 
     bend
 
     ' from start to offset-1
     ' ----------------------
-    if xoffs > 0 then begin
+    if int(xoffs) > 0 then begin
       ' edma 0, xoffs, data_addr+(frmw-xoffs), scraddr
       src_addr = data_addr+(frmw-xoffs)
       dest_addr = scraddr
+      dest_bank = $04
+      dest_mb_sel = $00
       length = xoffs
       transp = 32
       gosub transparent_dma
 
-      edma 0, xoffs, cdata_addr+(frmw-xoffs), clraddr
-      ' gosub transparent_dma
+      ' edma 0, xoffs, cdata_addr+(frmw-xoffs), clraddr
+      src_addr = cdata_addr+(frmw-xoffs)
+      dest_addr = clraddr
+      dest_bank = $08
+      dest_mb_sel = $ff
+      length = xoffs
+      transp = $ff
+      gosub transparent_dma
     bend
 
     data_addr = data_addr + frmw
@@ -197,13 +266,34 @@ gosub load_data
   return
 
 
+'---------
+.incr_offs
+'---------
+  for k = 0 to MAX_LAYER
+    xoffs(k) = xoffs(k) + offs_amount(k)
+  next k
+  return
+
+'---------
+.decr_offs
+'---------
+  for k = 0 to MAX_LAYER
+    xoffs(k) = xoffs(k) - offs_amount(k)
+  next k
+  return
+
+
 '---------------
 .draw_background
 '---------------
   getkey a$
-  if a$="{x1D}" then xoffs=xoffs+1
-  if a$="{x9D}" then xoffs=xoffs-1
+  if a$="{x1D}" then gosub incr_offs ' xoffs=xoffs+1
+  if a$="{x9D}" then gosub decr_offs ' xoffs=xoffs-1   
   print chr$(147)
+
+'       frameidx = draw_order(1)
+'       gosub draw_petscii_frame 
+'       return
 
   for lidx = 0 to MAX_LAYER
      ' if layer_visible[lidx] = 1 then begin
