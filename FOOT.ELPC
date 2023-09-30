@@ -1,0 +1,119 @@
+' Way of the Imploding Foot
+' -------------------------
+' A collaborative team-effort game made by the MEGA65 community
+'
+' Gurce:
+' - Initial background art and Eleven code infrastructure
+
+#output "foot"
+
+.petscii vars
+'------------
+#declare data_addr = $42000
+#declare max_frames
+#declare frame_addr(64)
+#declare frm_idx = 0
+#declare frmw, frmh,frmx,frmy,frmx1,frmy1,frameidx,cdata_addr
+
+gosub load_data
+
+.loop0
+  gosub init_vars
+  ' gosub show_title
+  gosub gameplay
+  ' gosub gameover
+  goto loop0
+
+
+'---------
+.load_data
+'---------
+  ' FORMAT:
+  ' ------
+  ' - The same as used by Xanadu grab tool?
+  ' - Save out a file for parallax layers
+  ' - Save out a file for sprites
+  return
+
+'---------
+.init_vars
+'---------
+  return
+
+'-------------------
+.init_petscii_frames
+'-------------------
+  max_frames = peek(data_addr)
+  data_addr = data_addr + 1
+
+  do while frm_idx < max_frames
+    frame_addr(frm_idx) = data_addr
+    data_addr = data_addr + 2
+    frmw = peek(data_addr)
+    data_addr = data_addr + 1
+    frmh = peek(data_addr)
+    data_addr = data_addr + 1
+    data_addr = data_addr + frmw * frmh * 2
+
+    ':print chr$(147);"frm_idx=";frm_idx
+    'frameidx=frm_idx
+    'gosub draw_petscii_frame
+    'getkey test2$
+
+    frm_idx = frm_idx + 1
+  loop
+  return
+
+
+'------------------
+.draw_petscii_frame
+'------------------
+  data_addr = frame_addr(frameidx)
+  frmx = peek(data_addr)
+  data_addr = data_addr + 1
+  frmy = peek(data_addr)
+  data_addr = data_addr + 1
+  frmw = peek(data_addr)
+  data_addr = data_addr + 1
+  frmh = peek(data_addr)
+  data_addr = data_addr + 1
+
+  frmx1=frmx+frmw-1
+  frmy1=frmy+frmh-1
+
+  #declare yy, scraddr,clraddr
+  scraddr = $40800 + frmx + frmy * 80
+  clraddr = $ff80000 + frmx + frmy * 80
+  cdata_addr = data_addr + frmw * frmh
+  for yy=frmy to frmy1
+    edma 0, frmw, data_addr, scraddr
+    edma 0, frmw, cdata_addr, clraddr
+    data_addr = data_addr + frmw
+    cdata_addr = cdata_addr + frmw
+    scraddr = scraddr + 80
+    clraddr = clraddr + 80  
+  next yy
+  return
+
+
+'--------
+.gameplay
+'--------
+  gosub draw_background
+  ' gosub draw_sprites
+  ' gosub user_input
+  ' gosub game_logic
+  goto gameplay
+  return
+
+
+'---------------
+.draw_background
+'---------------
+  ' for lidx = 0 to MAX_LAYER
+  '   if layer_visible[lidx] = 1 then begin
+  '     gosub draw_layer 
+  '   bend
+  ' next lidx
+  return
+ÿ
