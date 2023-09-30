@@ -7,6 +7,12 @@
 
 #output "foot"
 
+' BANK4 Memory usage
+' ------------------
+' 4.0000 DMA-LIST
+' 4.0800 SCREEN MEMORY
+' 4.2000 PETSCII GRAPHICS
+
 .petscii vars
 '------------
 #declare data_addr = $42000
@@ -14,6 +20,29 @@
 #declare frame_addr(64)
 #declare frm_idx = 0
 #declare frmw, frmh,frmx,frmy,frmx1,frmy1,frameidx,cdata_addr
+#declare yy, scraddr,clraddr
+#declare a$, lidx, k
+#declare src_addr, dest_addr, length, transp
+
+#declare xoffs(6) ' offset into cycling of graphic
+
+#define IMG_CLOUDS = 0
+#define IMG_SKY = 1
+#define IMG_LT_MOUNT = 2
+#define IMG_DK_MOUNT = 3
+#define IMG_HI_GROUND = 5
+#define IMG_LO_GROUND = 6
+
+#define MAX_LAYER = 6
+
+#declare draw_order(6)
+draw_order(0) = 1
+draw_order(1) = 0
+draw_order(2) = 2
+draw_order(3) = 3
+draw_order(4) = 4
+draw_order(5) = 5
+draw_order(6) = 6
 
 gosub load_data
 
@@ -24,6 +53,18 @@ gosub load_data
   ' gosub gameover
   goto loop0
 
+'---------------
+.transparent_dma
+'---------------
+  wpoke $40007, src_addr
+  wpoke $4000a, dest_addr
+  wpoke $40005, length
+  poke  $40002, transp
+  poke $d702, 4 ' dma list in bank 4
+  poke $d701, $00 ' dma list msb
+  poke $d705, $00 ' dma list lsb
+
+  return
 
 '---------
 .load_data
@@ -33,11 +74,33 @@ gosub load_data
   ' - The same as used by Xanadu grab tool?
   ' - Save out a file for parallax layers
   ' - Save out a file for sprites
+
+^^bload "layers.bin",p($42000),r
+  gosub init_petscii_frames
   return
 
 '---------
 .init_vars
 '---------
+  ' clear dma list area
+
+  for k = 0 to 20
+    poke $40000+k, 0
+  next k
+
+  poke $40000, $07 ' opt = enable transparency
+  poke $40001, $86 ' opt = set transparency
+  poke $40002, $20 ' transparency value
+  poke $40003, $00 ' end of options
+  poke $40004, $00 ' CMD lsb = COPY
+  wpoke $40005, $0000 ' length
+  wpoke $40007, $1000 ' source addr
+  poke $40009, $04    ' source bank
+  wpoke $4000a, $1000 ' dest addr
+  poke $4000c, $04    ' dest bank
+  poke $4000d, $00    ' CMD msb (ignore)
+  wpoke $4000e, $0000 ' modulo (ignore)
+
   return
 
 '-------------------
@@ -81,13 +144,40 @@ gosub load_data
   frmx1=frmx+frmw-1
   frmy1=frmy+frmh-1
 
-  #declare yy, scraddr,clraddr
   scraddr = $40800 + frmx + frmy * 80
   clraddr = $ff80000 + frmx + frmy * 80
   cdata_addr = data_addr + frmw * frmh
   for yy=frmy to frmy1
-    edma 0, frmw, data_addr, scraddr
-    edma 0, frmw, cdata_addr, clraddr
+
+    ' from offset to end
+    ' ------------------
+    if (frmw-xoffs) > 0 then begin
+      ' edma 0, frmw-xoffs, data_addr, scraddr+xoffs
+      src_addr = data_addr
+      dest_addr = scraddr+xoffs
+      length = frmw-xoffs
+      transp = 32
+      gosub transparent_dma
+
+      edma 0, frmw-xoffs, cdata_addr, clraddr+xoffs
+      ' gosub transparent_dma
+
+    bend
+
+    ' from start to offset-1
+    ' ----------------------
+    if xoffs > 0 then begin
+      ' edma 0, xoffs, data_addr+(frmw-xoffs), scraddr
+      src_addr = data_addr+(frmw-xoffs)
+      dest_addr = scraddr
+      length = xoffs
+      transp = 32
+      gosub transparent_dma
+
+      edma 0, xoffs, cdata_addr+(frmw-xoffs), clraddr
+      ' gosub transparent_dma
+    bend
+
     data_addr = data_addr + frmw
     cdata_addr = cdata_addr + frmw
     scraddr = scraddr + 80
@@ -110,10 +200,16 @@ gosub load_data
 '---------------
 .draw_background
 '---------------
-  ' for lidx = 0 to MAX_LAYER
-  '   if layer_visible[lidx] = 1 then begin
-  '     gosub draw_layer 
-  '   bend
-  ' next lidx
+  getkey a$
+  if a$="{x1D}" then xoffs=xoffs+1
+  if a$="{x9D}" then xoffs=xoffs-1
+  print chr$(147)
+
+  for lidx = 0 to MAX_LAYER
+     ' if layer_visible[lidx] = 1 then begin
+       frameidx = draw_order(lidx)
+       gosub draw_petscii_frame 
+     'bend
+  next lidx
   return
 ÿ
