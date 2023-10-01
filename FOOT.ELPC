@@ -125,7 +125,8 @@ gosub load_data
   wpoke $40010, $0000 ' modulo (ignore)
 
   ' clear the offscreen buffer
-  edma 3, $fa0, $20, $50000
+  edma 3, $f00, 160, $50000
+  edma 3, $a0, $20, $50f00
   edma 3, $fa0, $4f, $51000
 
   return
@@ -208,28 +209,29 @@ gosub load_data
   clraddr = $51000 + frmx + frmy * 80
   cdata_addr = data_addr + frmw * frmh
 
-  xoffs = xoffs(frameidx)
+  xoffs = mod(int(xoffs(frameidx))+80, 80)
 
   for yy=frmy to frmy1
 
     ' from offset to end
     ' ------------------
-    if int(frmw-xoffs) > 0 then begin
-      ' edma 0, frmw-xoffs, data_addr, scraddr+xoffs
+    k = frmw-xoffs
+    if k > 0 then begin
+      ' edma 0, k, data_addr, scraddr+xoffs
       src_addr = data_addr
       dest_addr = scraddr+xoffs
       dest_bank = $05
       dest_mb_sel = $00
-      length = frmw-xoffs
+      length = k
       transp = 32
       gosub transparent_dma
 
-      ' edma 0, frmw-xoffs, cdata_addr, clraddr+xoffs
+      ' edma 0, k, cdata_addr, clraddr+xoffs
       src_addr = cdata_addr
       dest_addr = clraddr+xoffs
       dest_bank = $05
       dest_mb_sel = $00
-      length = frmw-xoffs
+      length = k
       transp = $ff
       gosub transparent_dma
 
@@ -237,9 +239,9 @@ gosub load_data
 
     ' from start to offset-1
     ' ----------------------
-    if int(xoffs) > 0 then begin
-      ' edma 0, xoffs, data_addr+(frmw-xoffs), scraddr
-      src_addr = data_addr+(frmw-xoffs)
+    if xoffs > 0 then begin
+      ' edma 0, xoffs, data_addr+k, scraddr
+      src_addr = data_addr+k
       dest_addr = scraddr
       dest_bank = $05
       dest_mb_sel = $00
@@ -247,8 +249,8 @@ gosub load_data
       transp = 32
       gosub transparent_dma
 
-      ' edma 0, xoffs, cdata_addr+(frmw-xoffs), clraddr
-      src_addr = cdata_addr+(frmw-xoffs)
+      ' edma 0, k, cdata_addr+k, clraddr
+      src_addr = cdata_addr+k
       dest_addr = clraddr
       dest_bank = $05
       dest_mb_sel = $00
@@ -284,7 +286,7 @@ gosub load_data
   edma 0, $fa0, $51000, $ff80000
 
   ' fill the top part
-  edma 3, $fa0, $4f, $51000
+  edma 3, $f00, $4f, $51000
   return
 
 '---------
