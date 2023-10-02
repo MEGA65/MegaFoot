@@ -73,10 +73,8 @@ gosub load_data
 '---------------
 .transparent_dma
 '---------------
-  poke $40001, dest_mb_sel
   wpoke $40009, src_addr
   wpoke $4000c, dest_addr
-  poke $4000e, dest_bank
   wpoke $40007, length
   poke  $40004, transp
   poke $d702, 4 ' dma list in bank 4
@@ -120,7 +118,7 @@ gosub load_data
   wpoke $40009, $1000 ' source addr
   poke $4000b, $04    ' source bank
   wpoke $4000c, $1000 ' dest addr
-  poke $4000e, $04    ' dest bank
+  poke $4000e, $05    ' dest bank
   poke $4000f, $00    ' CMD msb (ignore)
   wpoke $40010, $0000 ' modulo (ignore)
 
@@ -220,8 +218,6 @@ gosub load_data
       ' edma 0, k, data_addr, scraddr+xoffs
       src_addr = data_addr
       dest_addr = scraddr+xoffs
-      dest_bank = $05
-      dest_mb_sel = $00
       length = k
       transp = 32
       gosub transparent_dma
@@ -229,9 +225,6 @@ gosub load_data
       ' edma 0, k, cdata_addr, clraddr+xoffs
       src_addr = cdata_addr
       dest_addr = clraddr+xoffs
-      dest_bank = $05
-      dest_mb_sel = $00
-      length = k
       transp = $ff
       gosub transparent_dma
 
@@ -243,8 +236,6 @@ gosub load_data
       ' edma 0, xoffs, data_addr+k, scraddr
       src_addr = data_addr+k
       dest_addr = scraddr
-      dest_bank = $05
-      dest_mb_sel = $00
       length = xoffs
       transp = 32
       gosub transparent_dma
@@ -252,9 +243,6 @@ gosub load_data
       ' edma 0, k, cdata_addr+k, clraddr
       src_addr = cdata_addr+k
       dest_addr = clraddr
-      dest_bank = $05
-      dest_mb_sel = $00
-      length = xoffs
       transp = $ff
       gosub transparent_dma
     bend
