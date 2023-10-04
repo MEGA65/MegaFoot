@@ -24,6 +24,8 @@
 #declare data_addr = $42000
 #declare max_frames
 #declare frame_addr(64)
+#declare frame_dblup_addr(64)
+
 #declare frm_idx = 0
 #declare frmw, frmh,frmx,frmy,frmx1,frmy1,frameidx,cdata_addr
 #declare yy, scraddr,clraddr
@@ -32,6 +34,8 @@
 #declare dest_mb_sel, dest_bank
 
 #declare xoffs(6) ' offset into cycling of graphic
+
+#declare dblup_addr = $52000
 
 #define IMG_CLOUDS = 0
 #define IMG_SKY = 1
@@ -95,6 +99,7 @@ gosub load_data
 ^^bload "layers.bin",p($42000),r
   gosub init_petscii_frames
   gosub repair_petscii_frames
+  gosub prepare_double_copy_layer
   return
 
 '---------
@@ -190,6 +195,8 @@ gosub load_data
 '-------------------------
 .prepare_double_copy_layer
 '-------------------------
+  dblup_addr = $52000
+
   for frameidx = 0 to max_frames-1 
     data_addr = frame_addr(frameidx)
     frmx = peek(data_addr)
@@ -201,16 +208,29 @@ gosub load_data
     frmh = peek(data_addr)
     data_addr = data_addr + 1
 
-  frmx1=frmx+frmw-1
-  frmy1=frmy+frmh-1
+    frmx1=frmx+frmw-1
+    frmy1=frmy+frmh-1
 
-    ' TODO: copy each row twice into some location in $5.2000
+    frame_dblup_addr(frameidx) = dblup_addr
+
+    ' COPY CHARS for each row twice into some location in dblup_addr
     for y = frmy to frmy1
       for k = 0 to 1
-        for x = frmx to frmx1
-          ' copy it some place in $5.2000
-        next x
+          ' copy it to some place in $5.2000
+          edma 0, frmw, data_addr, dblup_addr
+          dblup_addr = dblup_addr + frmw
       next k
+      data_addr = data_addr + frmw
+    next y
+
+    ' COPY COLOR for each row twice into some location in dblup_addr
+    for y = frmy to frmy1
+      for k = 0 to 1
+          ' copy it to some place in $5.2000
+          edma 0, frmw, data_addr, dblup_addr
+          dblup_addr = dblup_addr + frmw
+      next k
+      data_addr = data_addr + frmw
     next y
 
   next frameidx
@@ -238,44 +258,25 @@ gosub load_data
   cdata_addr = data_addr + frmw * frmh
 
   xoffs = mod(int(xoffs(frameidx))+80, 80)
+  xoffs(frameidx) = xoffs
+
+  data_addr = frame_dblup_addr(frameidx)
+  cdata_addr = data_addr + frmw * frmh * 2
 
   for yy=frmy to frmy1
 
-    ' from offset to end
-    ' ------------------
-    k = frmw-xoffs
-    if k > 0 then begin
-      ' edma 0, k, data_addr, scraddr+xoffs
-      src_addr = data_addr
-      dest_addr = scraddr+xoffs
-      length = k
-      transp = 32
-      gosub transparent_dma
+    ' draw chars from offset to end
+    ' -----------------------------
+    src_addr = data_addr + xoffs
+    dest_addr = scraddr
+    length = frmw
+    transp = 32
+    gosub transparent_dma
 
-      ' edma 0, k, cdata_addr, clraddr+xoffs
-      src_addr = cdata_addr
-      dest_addr = clraddr+xoffs
-      transp = $ff
-      gosub transparent_dma
-
-    bend
-
-    ' from start to offset-1
-    ' ----------------------
-    if xoffs > 0 then begin
-      ' edma 0, xoffs, data_addr+k, scraddr
-      src_addr = data_addr+k
-      dest_addr = scraddr
-      length = xoffs
-      transp = 32
-      gosub transparent_dma
-
-      ' edma 0, k, cdata_addr+k, clraddr
-      src_addr = cdata_addr+k
-      dest_addr = clraddr
-      transp = $ff
-      gosub transparent_dma
-    bend
+    src_addr = cdata_addr + xoffs
+    dest_addr = clraddr
+    transp = $ff
+    gosub transparent_dma
 
     data_addr = data_addr + frmw
     cdata_addr = cdata_addr + frmw
