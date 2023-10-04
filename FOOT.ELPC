@@ -121,7 +121,7 @@ gosub load_data
   poke $40006, $00 ' CMD lsb = COPY
   wpoke $40007, $0000 ' length
   wpoke $40009, $1000 ' source addr
-  poke $4000b, $04    ' source bank
+  poke $4000b, $05    ' source bank
   wpoke $4000c, $1000 ' dest addr
   poke $4000e, $05    ' dest bank
   poke $4000f, $00    ' CMD msb (ignore)
@@ -257,8 +257,10 @@ gosub load_data
   clraddr = $51000 + frmx + frmy * 80
   cdata_addr = data_addr + frmw * frmh
 
-  xoffs = mod(int(xoffs(frameidx))+80, 80)
-  xoffs(frameidx) = xoffs
+  xoffs(frameidx) = mod(xoffs(frameidx) + 80, 80)
+  xoffs = int(xoffs(frameidx))
+  ' xoffs = mod(int(xoffs(frameidx))+80, 80)
+  ' xoffs(frameidx) = xoffs
 
   data_addr = frame_dblup_addr(frameidx)
   cdata_addr = data_addr + frmw * frmh * 2
@@ -278,8 +280,8 @@ gosub load_data
     transp = $ff
     gosub transparent_dma
 
-    data_addr = data_addr + frmw
-    cdata_addr = cdata_addr + frmw
+    data_addr = data_addr + frmw * 2
+    cdata_addr = cdata_addr + frmw * 2
     scraddr = scraddr + 80
     clraddr = clraddr + 80  
   next yy
@@ -332,9 +334,9 @@ gosub load_data
   if a$="{x1D}" then gosub incr_offs ' xoffs=xoffs+1
   if a$="{x9D}" then gosub decr_offs ' xoffs=xoffs-1   
 
-'       frameidx = draw_order(1)
-'       gosub draw_petscii_frame 
-'       return
+  '     frameidx = draw_order(1)
+  '     gosub draw_petscii_frame 
+  '     return
 
   for lidx = 0 to MAX_LAYER
      ' if layer_visible[lidx] = 1 then begin
