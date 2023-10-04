@@ -17,7 +17,7 @@
 ' ------------------
 ' 5.0000 screen buffer
 ' 5.1000 color ram buffer
-' 5.2000 (free)
+' 5.2000 doubled-up layer buffer
 
 .petscii vars
 '------------
@@ -184,6 +184,36 @@ gosub load_data
     
     frm_idx = frm_idx + 1
   loop
+
+  return
+
+'-------------------------
+.prepare_double_copy_layer
+'-------------------------
+  for frameidx = 0 to max_frames-1 
+    data_addr = frame_addr(frameidx)
+    frmx = peek(data_addr)
+    data_addr = data_addr + 1
+    frmy = peek(data_addr)
+    data_addr = data_addr + 1
+    frmw = peek(data_addr)
+    data_addr = data_addr + 1
+    frmh = peek(data_addr)
+    data_addr = data_addr + 1
+
+  frmx1=frmx+frmw-1
+  frmy1=frmy+frmh-1
+
+    ' TODO: copy each row twice into some location in $5.2000
+    for y = frmy to frmy1
+      for k = 0 to 1
+        for x = frmx to frmx1
+          ' copy it some place in $5.2000
+        next x
+      next k
+    next y
+
+  next frameidx
 
   return
 
