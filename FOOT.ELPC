@@ -33,29 +33,32 @@
 #declare src_addr, dest_addr, length, transp
 #declare dest_mb_sel, dest_bank
 
-#declare xoffs(6) ' offset into cycling of graphic
-
 #declare dblup_addr = $52000
 
 #define IMG_CLOUDS = 0
 #define IMG_SKY = 1
 #define IMG_LT_MOUNT = 2
 #define IMG_DK_MOUNT = 3
+#define IMG_WATER = 4
 #define IMG_HI_GROUND = 5
 #define IMG_LO_GROUND = 6
+#define IMG_SUN = 7
 
-#define MAX_LAYER = 6
+#define HIGHEST_LAYER = 7
 
-#declare draw_order(6)
-draw_order(0) = 1
-draw_order(1) = 0
-draw_order(2) = 2
-draw_order(3) = 3
-draw_order(4) = 4
-draw_order(5) = 5
-draw_order(6) = 6
+#declare xoffs(HIGHEST_LAYER) ' offset into cycling of graphic
 
-#declare offs_amount(6)
+#declare draw_order(HIGHEST_LAYER)
+draw_order(0) = IMG_SKY
+draw_order(1) = IMG_SUN
+draw_order(2) = IMG_CLOUDS
+draw_order(3) = IMG_LT_MOUNT
+draw_order(4) = IMG_DK_MOUNT
+draw_order(5) = IMG_WATER
+draw_order(6) = IMG_HI_GROUND
+draw_order(7) = IMG_LO_GROUND
+
+#declare offs_amount(HIGHEST_LAYER)
 offs_amount(0) = .7
 offs_amount(1) = 0
 offs_amount(2) = .1
@@ -65,11 +68,19 @@ offs_amount(5) = 1.5
 offs_amount(6) = 2
 
 
+'----
+.main
+'----
+print chr$(27)+"5"
+print chr$(147);
+border 0
+background 0
 gosub load_data
+
 
 .loop0
   gosub init_vars
-  ' gosub show_title
+  gosub show_title
   gosub gameplay
   ' gosub gameover
   goto loop0
@@ -86,6 +97,17 @@ gosub load_data
   poke $d705, $00 ' dma list lsb
 
   return
+
+
+'----------
+.show_title
+'----------
+  print chr$(147);
+  print "Way of the Imploding Foot"
+  print "========================="
+  print "A game made by the MEGA65 community!"
+  return
+
 
 '---------
 .load_data
@@ -180,9 +202,9 @@ gosub load_data
     frmy1=frmy+frmh-1
 
     for y = 0 to frmy1-frmy
-      for x = frmx to frmx1
-        if peek(data_addr + x + y * 80) = 32 then begin
-          poke(cdata_addr + x + y * 80), $ff
+      for x = 0 to frmx1-frmx
+        if peek(data_addr + x + y * frmw) = 32 then begin
+          poke(cdata_addr + x + y * frmw), $ff
         bend
       next x
     next y
@@ -235,6 +257,25 @@ gosub load_data
 
   next frameidx
 
+  return
+
+'---------------
+.draw_background
+'---------------
+  getkey a$
+  if a$="{x1D}" then gosub incr_offs ' xoffs=xoffs+1
+  if a$="{x9D}" then gosub decr_offs ' xoffs=xoffs-1   
+
+   '   frameidx = IMG_SUN
+   '   gosub draw_petscii_frame 
+   '   return
+
+  for lidx = 0 to HIGHEST_LAYER
+     ' if layer_visible[lidx] = 1 then begin
+       frameidx = draw_order(lidx)
+       gosub draw_petscii_frame 
+     'bend
+  next lidx
   return
 
 '------------------
@@ -313,7 +354,7 @@ gosub load_data
 '---------
 .incr_offs
 '---------
-  for k = 0 to MAX_LAYER
+  for k = 0 to HIGHEST_LAYER
     xoffs(k) = xoffs(k) + offs_amount(k)
   next k
   return
@@ -321,28 +362,8 @@ gosub load_data
 '---------
 .decr_offs
 '---------
-  for k = 0 to MAX_LAYER
+  for k = 0 to HIGHEST_LAYER
     xoffs(k) = xoffs(k) - offs_amount(k)
   next k
-  return
-
-
-'---------------
-.draw_background
-'---------------
-  getkey a$
-  if a$="{x1D}" then gosub incr_offs ' xoffs=xoffs+1
-  if a$="{x9D}" then gosub decr_offs ' xoffs=xoffs-1   
-
-  '     frameidx = draw_order(1)
-  '     gosub draw_petscii_frame 
-  '     return
-
-  for lidx = 0 to MAX_LAYER
-     ' if layer_visible[lidx] = 1 then begin
-       frameidx = draw_order(lidx)
-       gosub draw_petscii_frame 
-     'bend
-  next lidx
   return
 ÿ
