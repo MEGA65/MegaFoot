@@ -10,6 +10,7 @@
 ' BANK4 Memory usage
 ' ------------------
 ' 4.0000 DMA-LIST
+' 4.0100 SUNSET PALETTES (each palette is 16*3 in size, have 12 palettes)
 ' 4.0800 SCREEN MEMORY
 ' 4.2000 PETSCII GRAPHICS
 
@@ -67,6 +68,7 @@ offs_amount(4) = 1
 offs_amount(5) = 1.5
 offs_amount(6) = 2
 
+#declare palidx, ptr
 
 '----
 .main
@@ -76,7 +78,8 @@ print chr$(147);
 border 0
 background 0
 gosub load_data
-
+palidx = 0
+gosub set_palette
 
 .loop0
   gosub init_vars
@@ -122,6 +125,28 @@ gosub load_data
   gosub init_petscii_frames
   gosub repair_petscii_frames
   gosub prepare_double_copy_layer
+
+^^bload "pal.bin",p($40100),r
+  return
+
+'-----------
+.set_palette
+'----------- (palidx)
+  ptr = $40100 + palidx * 16 * 3
+
+  for k = 0 to 15
+    ' red
+    poke $d100 + k + 16, peek(ptr)
+    ptr = ptr + 1
+
+    ' green
+    poke $d200 + k + 16, peek(ptr)
+    ptr = ptr + 1
+
+    ' blue
+    poke $d300 + k + 16, peek(ptr)
+    ptr = ptr + 1
+  next k
   return
 
 '---------
@@ -265,6 +290,8 @@ gosub load_data
   getkey a$
   if a$="{x1D}" then gosub incr_offs ' xoffs=xoffs+1
   if a$="{x9D}" then gosub decr_offs ' xoffs=xoffs-1   
+  if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
+  if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
    '   frameidx = IMG_SUN
    '   gosub draw_petscii_frame 
