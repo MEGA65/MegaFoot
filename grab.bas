@@ -1,4 +1,4 @@
-    1 cl$=chr$(27)+"q":poke $d020,11,0
+    1 cl$=chr$(27)+"q":poke $d020,11,14
     2 ff=0:gosub 1200
    10 rem *** screen capture ***
    20 rem 1. press 'space' key on top-left point
