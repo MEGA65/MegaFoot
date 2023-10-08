@@ -49,7 +49,9 @@
 #define IMG_PWALK3 = 10
 
 
-#define HIGHEST_LAYER = 10
+#define HIGHEST_LAYER = 7
+
+#declare fx, fy
 
 #declare xoffs(HIGHEST_LAYER) ' offset into cycling of graphic
 
@@ -73,6 +75,16 @@ offs_amount(5) = 1.5
 offs_amount(6) = 2
 
 #declare palidx, ptr
+
+#declare anim_order(10)
+anim_order(0) = IMG_PWALK1
+anim_order(1) = IMG_PWALK2
+anim_order(2) = IMG_PWALK3
+anim_order(3) = IMG_PWALK2
+
+#declare MAX_PFRAME = 4
+
+#declare player_frame = 0
 
 '----
 .main
@@ -201,9 +213,6 @@ gosub set_palette
     data_addr = data_addr + frmw * frmh * 2
 
     ':print chr$(147);"frm_idx=";frm_idx
-    'frameidx=frm_idx
-    'gosub draw_petscii_frame
-    'getkey test2$
 
     frm_idx = frm_idx + 1
   loop
@@ -248,7 +257,7 @@ gosub set_palette
 '-------------------------
   dblup_addr = $52000
 
-  for frameidx = 0 to max_frames-1 
+  for frameidx = 0 to HIGHEST_LAYER
     data_addr = frame_addr(frameidx)
     frmx = peek(data_addr)
     data_addr = data_addr + 1
@@ -298,24 +307,79 @@ gosub set_palette
   if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
    '   frameidx = IMG_SUN
-   '   gosub draw_petscii_frame 
+   '   gosub draw_petscii_layer 
    '   return
+
+  poke $4000b, $05  ' assure source bank 5 (for doubled-up layers)
 
   for lidx = 0 to HIGHEST_LAYER
      ' if layer_visible[lidx] = 1 then begin
        frameidx = draw_order(lidx)
-       gosub draw_petscii_frame 
+       gosub draw_petscii_layer 
      'bend
   next lidx
 
 
-  frameidx = IMG_PWALK1
+
+  frameidx = anim_order(player_frame)
+  fx=0 : fy=23
   gosub draw_petscii_frame 
+
+  player_frame = player_frame + 1
+  if player_frame >= MAX_PFRAME then player_frame = 0
 
   return
 
 '------------------
 .draw_petscii_frame
+'------------------
+  poke $4000b, $04  ' assure source bank 4 (for original frame data)
+
+  data_addr = frame_addr(frameidx)
+  frmx = peek(data_addr)
+  data_addr = data_addr + 1
+  frmy = peek(data_addr)
+  data_addr = data_addr + 1
+  frmw = peek(data_addr)
+  data_addr = data_addr + 1
+  frmh = peek(data_addr)
+  data_addr = data_addr + 1
+
+  frmx = fx ' override position
+  frmy = fy
+
+  frmx1=frmx+frmw-1
+  frmy1=frmy+frmh-1
+
+  scraddr = $50000 + frmx + frmy * 80
+  clraddr = $51000 + frmx + frmy * 80
+  cdata_addr = data_addr + frmw * frmh
+
+  for yy=frmy to frmy1
+
+    ' draw chars
+    ' ----------
+    src_addr = data_addr
+    dest_addr = scraddr
+    length = frmw
+    transp = 32
+    gosub transparent_dma
+
+    src_addr = cdata_addr
+    dest_addr = clraddr
+    transp = $ff
+    gosub transparent_dma
+
+    data_addr = data_addr + frmw
+    cdata_addr = cdata_addr + frmw
+    scraddr = scraddr + 80
+    clraddr = clraddr + 80  
+  next yy
+  return
+
+
+'------------------
+.draw_petscii_layer
 '------------------
   data_addr = frame_addr(frameidx)
   frmx = peek(data_addr)
