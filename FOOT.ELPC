@@ -47,7 +47,12 @@
 #define IMG_PWALK1 = 8
 #define IMG_PWALK2 = 9
 #define IMG_PWALK3 = 10
-
+#define IMG_PPUNCH1 = 11
+#define IMG_PPUNCH2 = 12
+#define IMG_PPUNCH3 = 13
+#define IMG_PKICK1 = 14
+#define IMG_PKICK2 = 15
+#define IMG_PKICK3 = 16
 
 #define HIGHEST_LAYER = 7
 
@@ -76,15 +81,41 @@ offs_amount(6) = 2
 
 #declare palidx, ptr
 
-#declare anim_order(10)
-anim_order(0) = IMG_PWALK1
-anim_order(1) = IMG_PWALK2
-anim_order(2) = IMG_PWALK3
-anim_order(3) = IMG_PWALK2
+#define ANIM_PWALK = 0
+#define ANIM_PPUNCH = 1
+#define ANIM_PKICK = 2
+
+' #struct ANIMDETS, bars%, cpy%
+
+' SONG songs(4) = [ {x5F}
+'  [ 18, 6, 1 ], {x5F}
+'  [ 25, 14, 1 ], {x5F}
+'  [ 35, 10, 0 ], {x5F}
+'  [ 15, 6, 1 ], {x5F}
+'  [ 20, 9, 1 ]  {x5F}
+']
+
+#declare anim_order(3, 10)
+anim_order(ANIM_PWALK, 0) = IMG_PWALK1
+anim_order(ANIM_PWALK, 1) = IMG_PWALK2
+anim_order(ANIM_PWALK, 2) = IMG_PWALK3
+anim_order(ANIM_PWALK, 3) = IMG_PWALK2
+
+anim_order(ANIM_PPUNCH, 0) = IMG_PPUNCH1
+anim_order(ANIM_PPUNCH, 1) = IMG_PPUNCH2
+anim_order(ANIM_PPUNCH, 2) = IMG_PPUNCH3
+anim_order(ANIM_PPUNCH, 3) = IMG_PPUNCH2
+
+anim_order(ANIM_PKICK, 0) = IMG_PKICK1
+anim_order(ANIM_PKICK, 1) = IMG_PKICK2
+anim_order(ANIM_PKICK, 2) = IMG_PKICK3
+anim_order(ANIM_PKICK, 3) = IMG_PKICK2
+
 
 #declare MAX_PFRAME = 4
 
 #declare player_frame = 0
+#declare player_anim = 0 ' ANIM_PWALK
 
 '----
 .main
@@ -306,6 +337,15 @@ gosub set_palette
   if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
   if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
+  if a$=" " and player_anim = ANIM_PWALK then begin
+    player_anim = ANIM_PPUNCH
+    player_frame = 0
+  bend
+  if a$="z" and player_anim = ANIM_PWALK then begin
+    player_anim = ANIM_PKICK
+    player_frame = 0
+  bend
+
    '   frameidx = IMG_SUN
    '   gosub draw_petscii_layer 
    '   return
@@ -319,14 +359,23 @@ gosub set_palette
      'bend
   next lidx
 
+  gosub draw_player
+
+  return
 
 
-  frameidx = anim_order(player_frame)
+'-----------
+.draw_player
+'-----------
+  frameidx = anim_order(player_anim, player_frame)
   fx=0 : fy=23
   gosub draw_petscii_frame 
 
   player_frame = player_frame + 1
-  if player_frame >= MAX_PFRAME then player_frame = 0
+  if player_frame >= MAX_PFRAME then begin
+    player_anim = ANIM_PWALK
+    player_frame = 0
+  bend
 
   return
 
