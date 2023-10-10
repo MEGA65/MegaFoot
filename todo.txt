@@ -1,0 +1,20 @@
+TODO:
+----
+- make clouds move independently
+- make sun set slowly over time
+- optimise 'grab' data to minimise memory use
+  (and make room for baddie frames)
+- add female player option
+  (for my daughter to 'connect' with this game better :))
+- add baddie (with some dumb ai)
+- bounding box collision checks
+- energy bars
+- sound effects
+- music
+- scrolly text intro
+- title screen
+
+stretch goals
+-------------
+- story line cut scenes
+- add big baddie for final fight
