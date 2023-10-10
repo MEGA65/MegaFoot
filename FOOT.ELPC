@@ -36,6 +36,8 @@
 
 #declare dblup_addr = $52000
 
+#declare kneel_flag = 0
+
 .imgs
 '----
 #define IMG_CLOUDS = 0
@@ -58,6 +60,13 @@
 #define IMG_PKNEEL1 = 17
 #define IMG_PKNEEL2 = 18
 #define IMG_PKNEEL3 = 19
+#define IMG_PKPUNCH1 = 20
+#define IMG_PKPUNCH2 = 21
+#define IMG_PKPUNCH3 = 22
+#define IMG_PKKICK1 = 23
+#define IMG_PKKICK2 = 24
+#define IMG_PKKICK3 = 25
+
 
 #define HIGHEST_LAYER = 7
 
@@ -93,8 +102,10 @@ offs_amount(6) = 2
 #define ANIM_PKICK = 2
 #define ANIM_PKNEEL_DN = 3
 #define ANIM_PKNEEL_UP = 4
+#define ANIM_PKPUNCH = 5
+#define ANIM_PKKICK = 6
 
-#define ANIM_MAX = 5
+#define ANIM_MAX = 7
 
 
 #declare anim_order(ANIM_MAX, 10)
@@ -122,12 +133,27 @@ anim_order(ANIM_PKNEEL_DN, 2) = IMG_PKNEEL3
 anim_order(ANIM_PKNEEL_UP, 0) = IMG_PKNEEL2
 anim_order(ANIM_PKNEEL_UP, 1) = IMG_PKNEEL1
 
+anim_order(ANIM_PKPUNCH, 0) = IMG_PKPUNCH1
+anim_order(ANIM_PKPUNCH, 1) = IMG_PKPUNCH2
+anim_order(ANIM_PKPUNCH, 2) = IMG_PKPUNCH3
+anim_order(ANIM_PKPUNCH, 3) = IMG_PKPUNCH2
+anim_order(ANIM_PKPUNCH, 4) = IMG_PKPUNCH1
+
+anim_order(ANIM_PKKICK, 0) = IMG_PKKICK1
+anim_order(ANIM_PKKICK, 1) = IMG_PKKICK2
+anim_order(ANIM_PKKICK, 2) = IMG_PKKICK3
+anim_order(ANIM_PKKICK, 3) = IMG_PKKICK2
+anim_order(ANIM_PKKICK, 4) = IMG_PKKICK1
+
+
 #declare max_frame(ANIM_MAX)
 max_frame(ANIM_PWALK) = 4
 max_frame(ANIM_PPUNCH) = 5
 max_frame(ANIM_PKICK) = 5
 max_frame(ANIM_PKNEEL_DN) = 3
 max_frame(ANIM_PKNEEL_UP) = 2
+max_frame(ANIM_PKPUNCH) = 5
+max_frame(ANIM_PKKICK) = 5
 
 #declare player_frame = 0
 #declare player_anim = 0 ' ANIM_PWALK
@@ -171,6 +197,8 @@ gosub set_palette
   print "Way of the Imploding Foot"
   print "========================="
   print "A game made by the MEGA65 community!"
+  get key a$
+  a$=""
   return
 
 
@@ -240,6 +268,8 @@ gosub set_palette
   edma 3, $f00, 160, $50000
   edma 3, $a0, $20, $50f00
   edma 3, $fa0, $4f, $51000
+
+  kneel_flag = 0
 
   return
 
@@ -375,6 +405,7 @@ gosub set_palette
   ' ---------------------
   if a$="" and player_anim = ANIM_PKNEEL_DN then begin
     if player_frame >= max_frame(ANIM_PKNEEL_DN)-1 then begin
+    kneel_flag = 0
     player_anim = ANIM_PKNEEL_UP
     player_frame = 0
     bend
@@ -383,17 +414,19 @@ gosub set_palette
 
   ' handle cases with some input
   ' ----------------------------
-  if a$="{x1D}" then gosub incr_offs
-  if a$="{x9D}" then gosub decr_offs
+  if a$="{x1D}" then gosub incr_offs:kneel_flag = 0
+  if a$="{x9D}" then gosub decr_offs:kneel_flag = 0
   if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
   if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
   if a$=" " and player_anim = ANIM_PWALK then begin
     player_anim = ANIM_PPUNCH
+    if kneel_flag = 1 then player_anim = ANIM_PKPUNCH
     player_frame = 0
   bend
   if a$="z" and player_anim = ANIM_PWALK then begin
     player_anim = ANIM_PKICK
+    if kneel_flag = 1 then player_anim = ANIM_PKKICK
     player_frame = 0
   bend
   if a$="{x11}" and player_anim = ANIM_PWALK then begin
@@ -411,6 +444,13 @@ gosub set_palette
   fx=0 : fy=23
   gosub draw_petscii_frame
 
+  gosub consider_next_frame
+  return
+
+
+'-------------------
+.consider_next_frame
+'-------------------
   if player_anim = ANIM_PWALK and (a$="{x9D}" or a$="{x1D}") then begin
     player_frame = player_frame + 1
   bend
@@ -421,13 +461,19 @@ gosub set_palette
   if player_anim = ANIM_PKNEEL_DN and a$="{x11}" then begin
     if player_frame >= max_frame(ANIM_PKNEEL_DN) then begin
       player_frame = max_frame(ANIM_PKNEEL_DN) - 1
+      kneel_flag = 1
     bend
     return
   bend
 
   if player_frame >= max_frame(player_anim) then begin
-    player_anim = ANIM_PWALK
-    player_frame = 0
+    if kneel_flag = 1 and player_anim <> ANIM_PKNEEL_DN then begin
+      player_anim = ANIM_PKNEEL_DN
+      player_frame = max_frame(ANIM_PKNEEL_DN) - 1
+    bend:else begin
+      player_anim = ANIM_PWALK
+      player_frame = 0
+    bend
   bend
 
   return
