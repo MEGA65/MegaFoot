@@ -36,6 +36,8 @@
 
 #declare dblup_addr = $52000
 
+.imgs
+'----
 #define IMG_CLOUDS = 0
 #define IMG_SKY = 1
 #define IMG_LT_MOUNT = 2
@@ -53,6 +55,9 @@
 #define IMG_PKICK1 = 14
 #define IMG_PKICK2 = 15
 #define IMG_PKICK3 = 16
+#define IMG_PKNEEL1 = 17
+#define IMG_PKNEEL2 = 18
+#define IMG_PKNEEL3 = 19
 
 #define HIGHEST_LAYER = 7
 
@@ -81,21 +86,18 @@ offs_amount(6) = 2
 
 #declare palidx, ptr
 
+.anims
+'-----
 #define ANIM_PWALK = 0
 #define ANIM_PPUNCH = 1
 #define ANIM_PKICK = 2
+#define ANIM_PKNEEL_DN = 3
+#define ANIM_PKNEEL_UP = 4
 
-' #struct ANIMDETS, bars%, cpy%
+#define ANIM_MAX = 5
 
-' SONG songs(4) = [ {x5F}
-'  [ 18, 6, 1 ], {x5F}
-'  [ 25, 14, 1 ], {x5F}
-'  [ 35, 10, 0 ], {x5F}
-'  [ 15, 6, 1 ], {x5F}
-'  [ 20, 9, 1 ]  {x5F}
-']
 
-#declare anim_order(3, 10)
+#declare anim_order(ANIM_MAX, 10)
 anim_order(ANIM_PWALK, 0) = IMG_PWALK1
 anim_order(ANIM_PWALK, 1) = IMG_PWALK2
 anim_order(ANIM_PWALK, 2) = IMG_PWALK3
@@ -105,14 +107,27 @@ anim_order(ANIM_PPUNCH, 0) = IMG_PPUNCH1
 anim_order(ANIM_PPUNCH, 1) = IMG_PPUNCH2
 anim_order(ANIM_PPUNCH, 2) = IMG_PPUNCH3
 anim_order(ANIM_PPUNCH, 3) = IMG_PPUNCH2
+anim_order(ANIM_PPUNCH, 4) = IMG_PPUNCH1
 
 anim_order(ANIM_PKICK, 0) = IMG_PKICK1
 anim_order(ANIM_PKICK, 1) = IMG_PKICK2
 anim_order(ANIM_PKICK, 2) = IMG_PKICK3
 anim_order(ANIM_PKICK, 3) = IMG_PKICK2
+anim_order(ANIM_PKICK, 4) = IMG_PKICK1
 
+anim_order(ANIM_PKNEEL_DN, 0) = IMG_PKNEEL1
+anim_order(ANIM_PKNEEL_DN, 1) = IMG_PKNEEL2
+anim_order(ANIM_PKNEEL_DN, 2) = IMG_PKNEEL3
 
-#declare MAX_PFRAME = 4
+anim_order(ANIM_PKNEEL_UP, 0) = IMG_PKNEEL2
+anim_order(ANIM_PKNEEL_UP, 1) = IMG_PKNEEL1
+
+#declare max_frame(ANIM_MAX)
+max_frame(ANIM_PWALK) = 4
+max_frame(ANIM_PPUNCH) = 5
+max_frame(ANIM_PKICK) = 5
+max_frame(ANIM_PKNEEL_DN) = 3
+max_frame(ANIM_PKNEEL_UP) = 2
 
 #declare player_frame = 0
 #declare player_anim = 0 ' ANIM_PWALK
@@ -328,24 +343,11 @@ gosub set_palette
 
   return
 
+
 '---------------
 .draw_background
 '---------------
-  getkey a$
-  if a$="{x1D}" then gosub incr_offs ' xoffs=xoffs+1
-  if a$="{x9D}" then gosub decr_offs ' xoffs=xoffs-1   
-  if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
-  if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
-
-  if a$=" " and player_anim = ANIM_PWALK then begin
-    player_anim = ANIM_PPUNCH
-    player_frame = 0
-  bend
-  if a$="z" and player_anim = ANIM_PWALK then begin
-    player_anim = ANIM_PKICK
-    player_frame = 0
-  bend
-
+  gosub get_user_input
    '   frameidx = IMG_SUN
    '   gosub draw_petscii_layer 
    '   return
@@ -364,15 +366,66 @@ gosub set_palette
   return
 
 
+'--------------
+.get_user_input
+'--------------
+  get a$
+
+  ' handle no input cases
+  ' ---------------------
+  if a$="" and player_anim = ANIM_PKNEEL_DN then begin
+    if player_frame >= max_frame(ANIM_PKNEEL_DN)-1 then begin
+    player_anim = ANIM_PKNEEL_UP
+    player_frame = 0
+    bend
+  bend
+  if a$="" then return
+
+  ' handle cases with some input
+  ' ----------------------------
+  if a$="{x1D}" then gosub incr_offs
+  if a$="{x9D}" then gosub decr_offs
+  if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
+  if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
+
+  if a$=" " and player_anim = ANIM_PWALK then begin
+    player_anim = ANIM_PPUNCH
+    player_frame = 0
+  bend
+  if a$="z" and player_anim = ANIM_PWALK then begin
+    player_anim = ANIM_PKICK
+    player_frame = 0
+  bend
+  if a$="{x11}" and player_anim = ANIM_PWALK then begin
+    player_anim = ANIM_PKNEEL_DN
+    player_frame = 0
+  bend
+
+  return
+
+
 '-----------
 .draw_player
 '-----------
   frameidx = anim_order(player_anim, player_frame)
   fx=0 : fy=23
-  gosub draw_petscii_frame 
+  gosub draw_petscii_frame
 
-  player_frame = player_frame + 1
-  if player_frame >= MAX_PFRAME then begin
+  if player_anim = ANIM_PWALK and (a$="{x9D}" or a$="{x1D}") then begin
+    player_frame = player_frame + 1
+  bend
+  if player_anim <> ANIM_PWALK then begin
+    player_frame = player_frame + 1
+  bend
+
+  if player_anim = ANIM_PKNEEL_DN and a$="{x11}" then begin
+    if player_frame >= max_frame(ANIM_PKNEEL_DN) then begin
+      player_frame = max_frame(ANIM_PKNEEL_DN) - 1
+    bend
+    return
+  bend
+
+  if player_frame >= max_frame(player_anim) then begin
     player_anim = ANIM_PWALK
     player_frame = 0
   bend
