@@ -66,6 +66,23 @@
 #define IMG_PKKICK1 = 23
 #define IMG_PKKICK2 = 24
 #define IMG_PKKICK3 = 25
+#define IMG_PDIE1 = 26
+#define IMG_PDIE2 = 27
+#define IMG_PDIE3 = 28
+#define IMG_PDIE4 = 29
+#define IMG_PDIE5 = 30
+
+#define IMG_DWALK1 = 31
+#define IMG_DWALK2 = 32
+#define IMG_DWALK3 = 33
+#define IMG_DQUACK1 = 34
+#define IMG_DQUACK2 = 35
+#define IMG_DQUACK3 = 36
+#define IMG_DDIE1 = 37
+#define IMG_DDIE2 = 38
+#define IMG_DDIE3 = 39
+#define IMG_DDIE4 = 40
+#define IMG_DDIE5 = 41
 
 
 #define HIGHEST_LAYER = 7
@@ -104,8 +121,13 @@ offs_amount(6) = 2
 #define ANIM_PKNEEL_UP = 4
 #define ANIM_PKPUNCH = 5
 #define ANIM_PKKICK = 6
+#define ANIM_PDIE = 7
 
-#define ANIM_MAX = 7
+#define ANIM_DWALK = 8
+#define ANIM_DQUACK = 9
+#define ANIM_DDIE = 10
+
+#define ANIM_MAX = 11
 
 
 #declare anim_order(ANIM_MAX, 10)
@@ -145,6 +167,37 @@ anim_order(ANIM_PKKICK, 2) = IMG_PKKICK3
 anim_order(ANIM_PKKICK, 3) = IMG_PKKICK2
 anim_order(ANIM_PKKICK, 4) = IMG_PKKICK1
 
+anim_order(ANIM_PDIE, 0) = IMG_PDIE1
+anim_order(ANIM_PDIE, 1) = IMG_PDIE2
+anim_order(ANIM_PDIE, 2) = IMG_PDIE3
+anim_order(ANIM_PDIE, 3) = IMG_PDIE4
+anim_order(ANIM_PDIE, 4) = IMG_PDIE5
+anim_order(ANIM_PDIE, 5) = IMG_PDIE5
+anim_order(ANIM_PDIE, 6) = IMG_PDIE5
+anim_order(ANIM_PDIE, 7) = IMG_PDIE5
+anim_order(ANIM_PDIE, 8) = IMG_PDIE5
+
+anim_order(ANIM_DWALK, 0) = IMG_DWALK1
+anim_order(ANIM_DWALK, 1) = IMG_DWALK2
+anim_order(ANIM_DWALK, 2) = IMG_DWALK3
+anim_order(ANIM_DWALK, 3) = IMG_DWALK2
+
+anim_order(ANIM_DQUACK, 0) = IMG_DQUACK1
+anim_order(ANIM_DQUACK, 1) = IMG_DQUACK2
+anim_order(ANIM_DQUACK, 2) = IMG_DQUACK3
+anim_order(ANIM_DQUACK, 3) = IMG_DQUACK2
+anim_order(ANIM_DQUACK, 4) = IMG_DQUACK1
+
+anim_order(ANIM_DDIE, 0) = IMG_DDIE1
+anim_order(ANIM_DDIE, 1) = IMG_DDIE2
+anim_order(ANIM_DDIE, 2) = IMG_DDIE3
+anim_order(ANIM_DDIE, 3) = IMG_DDIE4
+anim_order(ANIM_DDIE, 4) = IMG_DDIE5
+anim_order(ANIM_DDIE, 5) = IMG_DDIE5
+anim_order(ANIM_DDIE, 6) = IMG_DDIE5
+anim_order(ANIM_DDIE, 7) = IMG_DDIE5
+anim_order(ANIM_DDIE, 8) = IMG_DDIE5
+
 
 #declare max_frame(ANIM_MAX)
 max_frame(ANIM_PWALK) = 4
@@ -154,6 +207,41 @@ max_frame(ANIM_PKNEEL_DN) = 3
 max_frame(ANIM_PKNEEL_UP) = 2
 max_frame(ANIM_PKPUNCH) = 5
 max_frame(ANIM_PKKICK) = 5
+max_frame(ANIM_PDIE) = 9
+
+max_frame(ANIM_DWALK) = 4
+max_frame(ANIM_DQUACK) = 5
+max_frame(ANIM_DDIE) = 9
+
+.fanim
+#define FORM_HUMAN = 0
+#define FORM_DUCK = 1
+#declare player_form = 0 ' HUMAN
+
+#define FANIM_WALK = 0
+#define FANIM_PUNCH = 1
+#define FANIM_KICK = 2
+#define FANIM_KNEEL_DN = 3
+#define FANIM_KNEEL_UP = 4
+#define FANIM_KPUNCH = 5
+#define FANIM_KKICK = 6
+#define FANIM_DIE = 7
+
+#define FANIM_MAX = 8
+
+#declare form_anim(2, FANIM_MAX)
+form_anim(FORM_HUMAN, FANIM_WALK) = ANIM_PWALK
+form_anim(FORM_HUMAN, FANIM_PUNCH) = ANIM_PPUNCH
+form_anim(FORM_HUMAN, FANIM_KICK) = ANIM_PKICK
+form_anim(FORM_HUMAN, FANIM_KNEEL_DN) = ANIM_PKNEEL_DN
+form_anim(FORM_HUMAN, FANIM_KNEEL_UP) = ANIM_PKNEEL_UP
+form_anim(FORM_HUMAN, FANIM_KPUNCH) = ANIM_PKPUNCH
+form_anim(FORM_HUMAN, FANIM_KKICK) = ANIM_PKKICK
+form_anim(FORM_HUMAN, FANIM_DIE) = ANIM_PDIE
+
+form_anim(FORM_DUCK, FANIM_WALK) = ANIM_DWALK
+form_anim(FORM_DUCK, FANIM_PUNCH) = ANIM_DQUACK
+form_anim(FORM_DUCK, FANIM_DIE) = ANIM_DDIE
 
 #declare player_frame = 0
 #declare player_anim = 0 ' ANIM_PWALK
@@ -270,6 +358,10 @@ gosub set_palette
   edma 3, $fa0, $4f, $51000
 
   kneel_flag = 0
+  player_form = FORM_HUMAN
+
+  player_frame = 0
+  player_anim = form_anim(player_form, FANIM_WALK)
 
   return
 
@@ -419,8 +511,8 @@ gosub set_palette
   if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
   if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
-  if a$=" " and player_anim = ANIM_PWALK then begin
-    player_anim = ANIM_PPUNCH
+  if a$=" " and player_anim = form_anim(player_form, FANIM_WALK) then begin
+    player_anim = form_anim(player_form, FANIM_PUNCH)
     if kneel_flag = 1 then player_anim = ANIM_PKPUNCH
     player_frame = 0
   bend
@@ -429,9 +521,26 @@ gosub set_palette
     if kneel_flag = 1 then player_anim = ANIM_PKKICK
     player_frame = 0
   bend
+  if a$="x" then begin
+    kneel_flag = 0
+    player_anim = form_anim(player_form, FANIM_DIE)
+    player_frame = 0
+  bend
   if a$="{x11}" and player_anim = ANIM_PWALK then begin
     player_anim = ANIM_PKNEEL_DN
     player_frame = 0
+  bend
+
+  ' d = toggle between human and duck
+  if a$="d" then begin
+    if player_form = FORM_HUMAN then begin
+      player_form = FORM_DUCK
+    bend:else begin
+      player_form = FORM_HUMAN
+    bend
+    player_anim = form_anim(player_form, FANIM_WALK)
+    player_frame = 0
+    kneel_flag = 0
   bend
 
   return
@@ -451,10 +560,10 @@ gosub set_palette
 '-------------------
 .consider_next_frame
 '-------------------
-  if player_anim = ANIM_PWALK and (a$="{x9D}" or a$="{x1D}") then begin
+  if player_anim = form_anim(player_form, FANIM_WALK) and (a$="{x9D}" or a$="{x1D}") then begin
     player_frame = player_frame + 1
   bend
-  if player_anim <> ANIM_PWALK then begin
+  if player_anim <> form_anim(player_form, FANIM_WALK) then begin
     player_frame = player_frame + 1
   bend
 
@@ -467,11 +576,16 @@ gosub set_palette
   bend
 
   if player_frame >= max_frame(player_anim) then begin
+    if player_anim = ANIM_PDIE then begin
+      player_anim = ANIM_PKNEEL_UP
+      player_frame = 0
+      return
+    bend
     if kneel_flag = 1 and player_anim <> ANIM_PKNEEL_DN then begin
       player_anim = ANIM_PKNEEL_DN
       player_frame = max_frame(ANIM_PKNEEL_DN) - 1
     bend:else begin
-      player_anim = ANIM_PWALK
+      player_anim = form_anim(player_form, FANIM_WALK)
       player_frame = 0
     bend
   bend
