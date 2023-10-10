@@ -13,6 +13,7 @@ TODO:
 - music
 - scrolly text intro
 - title screen
+- joystick support
 
 stretch goals
 -------------
