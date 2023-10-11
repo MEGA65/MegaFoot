@@ -426,6 +426,7 @@ gosub set_palette
 .draw_background
 '---------------
   gosub get_user_input
+
    '   frameidx = IMG_SUN
    '   gosub draw_petscii_layer 
    '   return
@@ -579,6 +580,7 @@ gosub set_palette
     ' ----------
     src_addr = cdata_addr
     dest_addr = clraddr
+    length = frmw
     transp = $ff
     gosub transparent_dma
 
@@ -619,6 +621,7 @@ gosub set_palette
     ' -----------------------------
     src_addr = cdata_addr + xoffs
     dest_addr = clraddr
+    length = frmw
     transp = $ff
     gosub transparent_dma
 
@@ -643,7 +646,7 @@ gosub set_palette
 '---------
 .page_flip
 '---------
-  edma 0, $fa0, $50000, $40800
+  edma 3, $fa0, $a0, $40800
   edma 0, $fa0, $51000, $ff80000
 
   ' fill the top part
