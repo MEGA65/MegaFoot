@@ -322,7 +322,7 @@
   if peek($5fffe) <> 71 or peek($5ffff) <> 73 then begin
     wpoke $5fffe, $4947
     print "{x93}";clr_line_right$;
-    print "magic signature applied. Reset frame count to zero? (Y/N)";
+    print "magic signature applied. reset frame count to zero? (y/n)";
     get key a$
     if a$ = "y" then poke $42000,0
     print "{x93}";clr_line_right$;
