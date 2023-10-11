@@ -9,6 +9,8 @@
 ' - Press 'c' to redraw current frame
 ' - Press 'l' then a frame# to load that frame
 ' - Press 'x' to exit program
+' - F1 = load file
+' - F3 = save file
 
 #output "grabber"
 
@@ -30,6 +32,7 @@
 #declare clr_ptr
 #declare a$, xidx, yidx
 #declare dest_char_ptr, dest_clr_ptr
+#declare fname$
 
 #define STORE_START_POS = 0
 #define STORE_END_POS = 1
@@ -40,6 +43,7 @@
 '----
 .main
 '----
+  key off
   poke $d020, 11, 14
 
   gosub init_vars
@@ -109,9 +113,34 @@
   if a$="l" then gosub load_frame
   if a$="x" then begin
     cursor 0,0
+    key on
     end
   bend
+  if a$="{x85}" then gosub load_bin
+  if a$="{x86}" then gosub save_bin
 
+  return
+
+
+'--------
+.load_bin
+'--------
+  input "load name: ";fname$
+  if fname$ = "" then return
+
+  bload (fname$),p($42000)
+  return
+
+
+'--------
+.save_bin
+'--------
+  input "save name: ";fname$
+  if fname$ = "" then return
+
+  gosub locate_next_free_byte
+  delete (fname$)
+  bsave (fname$),p($42000) to p(ptr)
   return
 
 

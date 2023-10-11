@@ -299,12 +299,12 @@ gosub set_palette
   ' - Save out a file for parallax layers
   ' - Save out a file for sprites
 
-^^bload "layers.bin",p($42000),r
+  bload "layers.bin",p($42000)
   gosub init_petscii_frames
   gosub repair_petscii_frames
   gosub prepare_double_copy_layer
 
-^^bload "pal.bin",p($40100),r
+  bload "pal.bin",p($40100),r
   return
 
 '-----------
