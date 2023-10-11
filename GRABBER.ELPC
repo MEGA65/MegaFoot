@@ -40,6 +40,8 @@
 '----
 .main
 '----
+  poke $d020, 11, 14
+
   gosub init_vars
   gosub check_magic_signature
 
@@ -69,7 +71,7 @@
 
   if store_state = STORE_END_POS then begin
     print chr$(27)+"qx=";startx;", y=";starty;
-    print ", w=";x-startx+1;", h=";y-starty+1
+    print ", w=";x-startx+1;", h=";y-starty+1;
   bend
   print clr_line_right$;
   return
@@ -93,14 +95,16 @@
     curr_frame = curr_frame - 1
     gosub draw_curr_frame
   bend
-  if a$="=" and curr_frame < peek($42000) then begin
+  if a$="=" and curr_frame < peek($42000)-1 then begin
     curr_frame = curr_frame + 1
     gosub draw_curr_frame
   bend
   if a$=" " then begin
     store_state = store_state + 1
-    gosub save_frame_to_memory
-    end
+    if store_state = 2 then begin
+      gosub save_frame_to_memory
+      end
+    bend
   bend
   if a$="l" then gosub load_frame
   if a$="x" then begin
@@ -116,6 +120,7 @@
 '--------------------
   poke $40800 + startx + starty * 80, start_char
   poke $ff80000 + startx + starty * 80, start_color
+
   poke $40800 + endx + endy * 80, end_char
   poke $ff80000 + endx + endy * 80, end_color
 
@@ -127,26 +132,26 @@
   ptr = ptr + 1
   poke ptr, starty
   ptr = ptr + 1
-  poke ptr, x - startx
+  poke ptr, x - startx + 1
   ptr = ptr + 1
-  poke ptr, y - starty
+  poke ptr, y - starty + 1
   ptr = ptr + 1
 
   for yidx = starty to y
     for xidx = startx to x
      poke ptr, peek($40800 + xidx + yidx * 80)
-     ptr = ptr +1
+     ptr = ptr + 1
     next xidx
   next yidx
 
   for yidx = starty to y
     for xidx = startx to x
      poke ptr, peek($ff80000 + xidx + yidx * 80)
-     ptr = ptr +1
+     ptr = ptr + 1
     next xidx
   next yidx
 
-  poke $42000, curr_frame + 1
+  poke $42000, frame_count + 1
 
   cursor 0,49
   print clr_line_right$;"frame count=";peek($42000);
@@ -206,14 +211,14 @@
 
   print "{x13}";clr_line_right$;
   print "x=";x;", y=";y;", w=";w;", h=";h;
-  print ", ptr=";ptr;
+  print ", ptr=$";hex$(ptr);
   print "{x11}";chr$(27);"j";clr_line_right$;"frame=";curr_frame;
   print ", nxt=$";hex$(ptr + w * h * 2);
 
   clr_ptr = ptr + w * h
 
   dest_char_ptr =$40800 + x + y * 80
-  dest_clr_ptr = $ff8000 + x + y * 80
+  dest_clr_ptr = $ff80000 + x + y * 80
 
   for yidx = y to endy
     edma 0, w, ptr, dest_char_ptr
