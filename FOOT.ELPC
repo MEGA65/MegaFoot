@@ -299,9 +299,8 @@ gosub set_palette
   ' - Save out a file for parallax layers
   ' - Save out a file for sprites
 
-  bload "layers.bin",p($42000)
+  bload "repaired.bin",p($42000)
   gosub init_petscii_frames
-  gosub repair_petscii_frames
   gosub prepare_double_copy_layer
 
   bload "pal.bin",p($40100),r
@@ -378,7 +377,7 @@ gosub set_palette
     data_addr = data_addr + 1
     frmh = peek(data_addr)
     data_addr = data_addr + 1
-    data_addr = data_addr + frmw * frmh * 2
+    data_addr = data_addr + frmw * frmh
 
     ':print chr$(147);"frm_idx=";frm_idx
 
@@ -386,39 +385,6 @@ gosub set_palette
   loop
   return
 
-
-'---------------------
-.repair_petscii_frames
-'---------------------
-  frm_idx = 0
-
-  do while frm_idx < max_frames
-    data_addr = frame_addr(frm_idx)
-    frmx = peek(data_addr)
-    data_addr = data_addr + 1
-    frmy = peek(data_addr)
-    data_addr = data_addr + 1
-    frmw = peek(data_addr)
-    data_addr = data_addr + 1
-    frmh = peek(data_addr)
-    data_addr = data_addr + 1
-    cdata_addr = data_addr + frmw * frmh
-
-    frmx1=frmx+frmw-1
-    frmy1=frmy+frmh-1
-
-    for y = 0 to frmy1-frmy
-      for x = 0 to frmx1-frmx
-        if peek(data_addr + x + y * frmw) = 32 then begin
-          poke(cdata_addr + x + y * frmw), $ff
-        bend
-      next x
-    next y
-    
-    frm_idx = frm_idx + 1
-  loop
-
-  return
 
 '-------------------------
 .prepare_double_copy_layer
@@ -440,16 +406,6 @@ gosub set_palette
     frmy1=frmy+frmh-1
 
     frame_dblup_addr(frameidx) = dblup_addr
-
-    ' COPY CHARS for each row twice into some location in dblup_addr
-    for y = frmy to frmy1
-      for k = 0 to 1
-          ' copy it to some place in $5.2000
-          edma 0, frmw, data_addr, dblup_addr
-          dblup_addr = dblup_addr + frmw
-      next k
-      data_addr = data_addr + frmw
-    next y
 
     ' COPY COLOR for each row twice into some location in dblup_addr
     for y = frmy to frmy1
@@ -621,20 +577,12 @@ gosub set_palette
 
     ' draw chars
     ' ----------
-    src_addr = data_addr
-    dest_addr = scraddr
-    length = frmw
-    transp = 32
-    gosub transparent_dma
-
     src_addr = cdata_addr
     dest_addr = clraddr
     transp = $ff
     gosub transparent_dma
 
-    data_addr = data_addr + frmw
     cdata_addr = cdata_addr + frmw
-    scraddr = scraddr + 80
     clraddr = clraddr + 80  
   next yy
   return
@@ -656,36 +604,25 @@ gosub set_palette
   frmx1=frmx+frmw-1
   frmy1=frmy+frmh-1
 
-  scraddr = $50000 + frmx + frmy * 80
+  scraddr = $50000 + frmx + frmy * 80  ' todo - remove
   clraddr = $51000 + frmx + frmy * 80
   cdata_addr = data_addr + frmw * frmh
 
   xoffs(frameidx) = mod(xoffs(frameidx) + 80, 80)
   xoffs = int(xoffs(frameidx))
-  ' xoffs = mod(int(xoffs(frameidx))+80, 80)
-  ' xoffs(frameidx) = xoffs
 
-  data_addr = frame_dblup_addr(frameidx)
-  cdata_addr = data_addr + frmw * frmh * 2
+  cdata_addr = frame_dblup_addr(frameidx)
 
   for yy=frmy to frmy1
 
     ' draw chars from offset to end
     ' -----------------------------
-    src_addr = data_addr + xoffs
-    dest_addr = scraddr
-    length = frmw
-    transp = 32
-    gosub transparent_dma
-
     src_addr = cdata_addr + xoffs
     dest_addr = clraddr
     transp = $ff
     gosub transparent_dma
 
-    data_addr = data_addr + frmw * 2
     cdata_addr = cdata_addr + frmw * 2
-    scraddr = scraddr + 80
     clraddr = clraddr + 80  
   next yy
   return

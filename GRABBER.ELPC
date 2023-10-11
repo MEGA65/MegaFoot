@@ -9,8 +9,9 @@
 ' - Press 'c' to redraw current frame
 ' - Press 'l' then a frame# to load that frame
 ' - Press 'x' to exit program
-' - F1 = load file
-' - F3 = save file
+' - F1 = load char+color .bin file
+' - F3 = save char+color .bin file
+' - F5 = save optimized+repaired .bin file
 
 #output "grabber"
 
@@ -25,7 +26,7 @@
 #declare frame_count
 #declare frmidx
 #declare bytes_used  ' old l
-#declare w, h
+#declare frmw, frmh
 #declare start_char, start_color, end_char, end_color
 #declare startx, starty, endx, endy
 #declare curr_frame
@@ -33,6 +34,7 @@
 #declare a$, xidx, yidx
 #declare dest_char_ptr, dest_clr_ptr
 #declare fname$
+#declare cval
 
 #define STORE_START_POS = 0
 #define STORE_END_POS = 1
@@ -118,6 +120,7 @@
   bend
   if a$="{x85}" then gosub load_bin
   if a$="{x86}" then gosub save_bin
+  if a$="{x87}" then gosub save_optimised
 
   return
 
@@ -141,6 +144,55 @@
   gosub locate_next_free_byte
   delete (fname$)
   bsave (fname$),p($42000) to p(ptr)
+  return
+
+
+'--------------
+.save_optimised
+'--------------
+  input "save name (optimised): ";fname$
+  if fname$ = "" then return
+
+  delete (fname$)
+
+  ptr = $42001
+  dopen #2,(fname$ + ",p"),w,u8
+  print #2, chr$(1);
+  print #2, chr$(2);  ' dummy address
+  print #2, chr$(frame_count);
+
+  for frmidx = 0 to frame_count - 1
+    x = peek(ptr)
+    ptr = ptr + 1
+    y = peek(ptr)
+    ptr = ptr + 1
+    frmw = peek(ptr)
+    ptr = ptr + 1
+    frmh = peek(ptr)
+    ptr = ptr + 1
+
+    print #2, chr$(x);chr$(y);chr$(frmw);chr$(frmh);
+
+    endx = x + frmw - 1
+    endy = y + frmh - 1
+
+    clr_ptr = ptr + frmw * frmh
+    
+    for yidx = 0 to endy - y
+      for xidx = 0 to endx - x
+        cval = peek(clr_ptr + xidx + yidx * frmw)
+        if peek(ptr + xidx + yidx * frmw) = 32 then begin
+          cval = $ff
+        bend
+        print #2, chr$(cval);
+      next xidx
+    next yidx
+
+    ptr = ptr + frmw * frmh * 2
+
+  next frmidx
+
+  dclose #2
   return
 
 
@@ -215,12 +267,12 @@
     if frmidx = curr_frame then goto _found_it
     ' skip x, y
     ptr = ptr + 2
-    w = peek(ptr)
+    frmw = peek(ptr)
     ptr = ptr + 1
-    h = peek(ptr)
+    frmh = peek(ptr)
     ptr = ptr + 1
 
-    ptr = ptr + w * h * 2
+    ptr = ptr + frmw * frmh * 2
 
     frmidx = frmidx + 1
   loop
@@ -230,30 +282,30 @@
   ptr = ptr + 1
   y = peek(ptr)
   ptr = ptr + 1
-  w = peek(ptr)
+  frmw = peek(ptr)
   ptr = ptr + 1
-  h = peek(ptr)
+  frmh = peek(ptr)
   ptr = ptr + 1
 
-  endx = x + w - 1
-  endy = y + h - 1
+  endx = x + frmw - 1
+  endy = y + frmh - 1
 
   print "{x13}";clr_line_right$;
-  print "x=";x;", y=";y;", w=";w;", h=";h;
+  print "x=";x;", y=";y;", w=";frmw;", h=";frmh;
   print ", ptr=$";hex$(ptr);
   print "{x11}";chr$(27);"j";clr_line_right$;"frame=";curr_frame;
-  print ", nxt=$";hex$(ptr + w * h * 2);
+  print ", nxt=$";hex$(ptr + frmw * frmh * 2);
 
-  clr_ptr = ptr + w * h
+  clr_ptr = ptr + frmw * frmh
 
   dest_char_ptr =$40800 + x + y * 80
   dest_clr_ptr = $ff80000 + x + y * 80
 
   for yidx = y to endy
-    edma 0, w, ptr, dest_char_ptr
-    edma 0, w, clr_ptr, dest_clr_ptr
-    ptr = ptr + w
-    clr_ptr = clr_ptr + w
+    edma 0, frmw, ptr, dest_char_ptr
+    edma 0, frmw, clr_ptr, dest_clr_ptr
+    ptr = ptr + frmw
+    clr_ptr = clr_ptr + frmw
     dest_char_ptr = dest_char_ptr + 80
     dest_clr_ptr = dest_clr_ptr + 80
   next yidx
@@ -334,10 +386,10 @@
     bend
 
     ptr = ptr + 2  ' skip x, y info
-    w = peek(ptr) : ptr = ptr + 1
-    h = peek(ptr) : ptr = ptr + 1
+    frmw = peek(ptr) : ptr = ptr + 1
+    frmh = peek(ptr) : ptr = ptr + 1
 
-    ptr = ptr + w * h * 2
+    ptr = ptr + frmw * frmh * 2
     frmidx = frmidx + 1
 
   loop
