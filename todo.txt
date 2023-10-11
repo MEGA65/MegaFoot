@@ -2,7 +2,7 @@ TODO:
 ----
 - make clouds move independently
 - make sun set slowly over time
-- optimise 'grab' data to minimise memory use
+DONE- optimise 'grab' data to minimise memory use
   (and make room for baddie frames)
 - add female player option
   (for my daughter to 'connect' with this game better :))
