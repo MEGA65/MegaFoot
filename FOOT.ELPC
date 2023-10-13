@@ -40,6 +40,9 @@
 
 #declare mirror
 
+#declare px, py ' player x,y
+#declare bx, by ' baddie x,y
+
 .imgs
 '----
 #define IMG_CLOUDS = 0
@@ -364,6 +367,8 @@ gosub set_palette
 
   player_frame = 0
   player_anim = form_anim(player_form, FANIM_WALK)
+  px = 0 : py = 23
+  bx = 60 : by = 23
 
   return
 
@@ -449,6 +454,32 @@ gosub set_palette
   return
 
 
+'----------
+.move_right
+'----------
+  if px < 25 then begin
+    px = px + 1
+  bend:else begin
+    gosub incr_offs
+  bend
+
+  kneel_flag = 0
+  return
+
+
+'---------
+.move_left
+'---------
+  if px > 0 then begin
+    px = px - 1
+  bend:else begin
+    gosub decr_offs
+  bend
+
+  kneel_flag = 0
+  return
+
+
 '--------------
 .get_user_input
 '--------------
@@ -467,8 +498,8 @@ gosub set_palette
 
   ' handle cases with some input
   ' ----------------------------
-  if a$="{x1D}" then gosub incr_offs:kneel_flag = 0
-  if a$="{x9D}" then gosub decr_offs:kneel_flag = 0
+  if a$="{x1D}" then gosub move_right
+  if a$="{x9D}" then gosub move_left
   if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
   if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
@@ -511,7 +542,7 @@ gosub set_palette
 .draw_player
 '-----------
   frameidx = anim_order(player_anim, player_frame)
-  fx=0 : fy=23
+  fx=px : fy=py
   mirror = 0
   gosub draw_petscii_frame
 
@@ -523,7 +554,7 @@ gosub set_palette
 .draw_baddie
 '-----------
   frameidx = anim_order(player_anim, player_frame)
-  fx=60 : fy=23
+  fx=bx : fy=by
   mirror = 1
   gosub draw_petscii_frame
   return
