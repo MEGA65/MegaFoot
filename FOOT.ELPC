@@ -460,7 +460,10 @@ gosub set_palette
   if px < 25 then begin
     px = px + 1
   bend:else begin
-    gosub incr_offs
+    if bx > 0 then begin
+      gosub incr_offs
+      bx = bx - 1
+    bend
   bend
 
   kneel_flag = 0
@@ -473,7 +476,10 @@ gosub set_palette
   if px > 0 then begin
     px = px - 1
   bend:else begin
-    gosub decr_offs
+    if bx < 60 then begin
+      gosub decr_offs
+      bx = bx + 1
+    bend
   bend
 
   kneel_flag = 0
