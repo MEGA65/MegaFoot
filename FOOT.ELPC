@@ -38,6 +38,8 @@
 
 #declare kneel_flag = 0
 
+#declare mirror
+
 .imgs
 '----
 #define IMG_CLOUDS = 0
@@ -342,6 +344,7 @@ gosub set_palette
   poke $40003, $86 ' opt = set transparency
   poke $40004, $20 ' transparency value
   poke $40005, $00 ' end of options
+
   poke $40006, $00 ' CMD lsb = COPY
   wpoke $40007, $0000 ' length
   wpoke $40009, $1000 ' source addr
@@ -441,6 +444,7 @@ gosub set_palette
   next lidx
 
   gosub draw_player
+  gosub draw_baddie
 
   return
 
@@ -508,9 +512,20 @@ gosub set_palette
 '-----------
   frameidx = anim_order(player_anim, player_frame)
   fx=0 : fy=23
+  mirror = 0
   gosub draw_petscii_frame
 
   gosub consider_next_frame
+  return
+
+
+'-----------
+.draw_baddie
+'-----------
+  frameidx = anim_order(player_anim, player_frame)
+  fx=60 : fy=23
+  mirror = 1
+  gosub draw_petscii_frame
   return
 
 
@@ -553,7 +568,7 @@ gosub set_palette
 .draw_petscii_frame
 '------------------
   poke $4000b, $04  ' assure source bank 4 (for original frame data)
-
+  if mirror = 1 then setbit $40006, 5:else clrbit $40006, 5
   data_addr = frame_addr(frameidx)
   frmx = peek(data_addr)
   data_addr = data_addr + 1
@@ -570,8 +585,9 @@ gosub set_palette
   frmx1=frmx+frmw-1
   frmy1=frmy+frmh-1
 
-  scraddr = $50000 + frmx + frmy * 80
   clraddr = $51000 + frmx + frmy * 80
+  if mirror = 1 then clraddr = clraddr + frmw - 1
+
   cdata_addr = data_addr
 
   for yy=frmy to frmy1
@@ -593,6 +609,7 @@ gosub set_palette
 '------------------
 .draw_petscii_layer
 '------------------
+  clrbit $40006, 5
   data_addr = frame_addr(frameidx)
   frmx = peek(data_addr)
   data_addr = data_addr + 1
