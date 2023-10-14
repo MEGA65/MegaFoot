@@ -448,9 +448,6 @@ gosub set_palette
      'bend
   next lidx
 
-  gosub draw_player
-  gosub draw_baddie
-
   return
 
 
@@ -689,11 +686,18 @@ gosub set_palette
 .gameplay
 '--------
   gosub draw_background
-  ' gosub draw_sprites
+  gosub draw_sprites
   gosub page_flip
   ' gosub user_input
   ' gosub game_logic
   goto gameplay
+  return
+
+'------------
+.draw_sprites
+'------------
+  gosub draw_player
+  gosub draw_baddie
   return
 
 
