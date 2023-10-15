@@ -27,6 +27,8 @@
 #declare frame_addr(64)
 #declare frame_dblup_addr(64)
 
+#declare jdir_raw, jfire, jdir
+
 #declare frm_idx = 0
 #declare frmw, frmh,frmx,frmy,frmx1,frmy1,frameidx,cdata_addr
 #declare yy, scraddr,clraddr
@@ -251,6 +253,9 @@ form_anim(FORM_DUCK, FANIM_DIE) = ANIM_DDIE
 #declare player_frame = 0
 #declare player_anim = 0 ' ANIM_PWALK
 
+#declare baddie_frame = 0
+#declare baddie_anim = 0 ' ANIM_PWALK
+
 '----
 .main
 '----
@@ -433,8 +438,6 @@ gosub set_palette
 '---------------
 .draw_background
 '---------------
-  gosub get_user_input
-
    '   frameidx = IMG_SUN
    '   gosub draw_petscii_layer 
    '   return
@@ -483,35 +486,47 @@ gosub set_palette
   return
 
 
+#define J_UP = 1
+#define J_UP_RIGHT = 2
+#define J_RIGHT = 3
+#define J_DOWN_RIGHT = 4
+#define J_DOWN = 5
+#define J_DOWN_LEFT = 6
+#define J_LEFT = 7
+#define J_UP_LEFT = 8
+#define J_FIRE = 128
+
 '--------------
 .get_user_input
 '--------------
-  get a$
+  jdir_raw = joy(2)
+  jfire = jdir_raw and 128
+  jdir = jdir_raw and $7f
 
   ' handle no input cases
   ' ---------------------
-  if a$="" and player_anim = ANIM_PKNEEL_DN then begin
+  if jdir_raw=0 and player_anim = ANIM_PKNEEL_DN then begin
     if player_frame >= max_frame(ANIM_PKNEEL_DN)-1 then begin
     kneel_flag = 0
     player_anim = ANIM_PKNEEL_UP
     player_frame = 0
     bend
   bend
-  if a$="" then return
+  if jdir_raw = 0 then return
 
   ' handle cases with some input
   ' ----------------------------
-  if a$="{x1D}" then gosub move_right
-  if a$="{x9D}" then gosub move_left
+  if jdir=J_RIGHT then gosub move_right
+  if jdir=J_LEFT then gosub move_left
   if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
   if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
-  if a$=" " and player_anim = form_anim(player_form, FANIM_WALK) then begin
+  if jfire=128 and jdir=J_UP_RIGHT and player_anim = form_anim(player_form, FANIM_WALK) then begin
     player_anim = form_anim(player_form, FANIM_PUNCH)
     if kneel_flag = 1 then player_anim = ANIM_PKPUNCH
     player_frame = 0
   bend
-  if a$="z" and player_anim = ANIM_PWALK then begin
+  if jfire=128 and jdir=J_DOWN_RIGHT and player_anim = ANIM_PWALK then begin
     player_anim = ANIM_PKICK
     if kneel_flag = 1 then player_anim = ANIM_PKKICK
     player_frame = 0
@@ -521,7 +536,7 @@ gosub set_palette
     player_anim = form_anim(player_form, FANIM_DIE)
     player_frame = 0
   bend
-  if a$="{x11}" and player_anim = ANIM_PWALK then begin
+  if jdir=J_DOWN and player_anim = ANIM_PWALK then begin
     player_anim = ANIM_PKNEEL_DN
     player_frame = 0
   bend
@@ -549,31 +564,30 @@ gosub set_palette
   mirror = 0
   gosub draw_petscii_frame
 
-  gosub consider_next_frame
   return
 
 
 '-----------
 .draw_baddie
 '-----------
-  frameidx = anim_order(player_anim, player_frame)
+  frameidx = anim_order(baddie_anim, baddie_frame)
   fx=bx : fy=by
   mirror = 1
   gosub draw_petscii_frame
   return
 
 
-'-------------------
-.consider_next_frame
-'-------------------
-  if player_anim = form_anim(player_form, FANIM_WALK) and (a$="{x9D}" or a$="{x1D}") then begin
+'--------------------------
+.consider_next_player_frame
+'--------------------------
+  if player_anim = form_anim(player_form, FANIM_WALK) and (jdir=J_LEFT or jdir=J_RIGHT) then begin
     player_frame = player_frame + 1
   bend
   if player_anim <> form_anim(player_form, FANIM_WALK) then begin
     player_frame = player_frame + 1
   bend
 
-  if player_anim = ANIM_PKNEEL_DN and a$="{x11}" then begin
+  if player_anim = ANIM_PKNEEL_DN and jdir=J_DOWN then begin
     if player_frame >= max_frame(ANIM_PKNEEL_DN) then begin
       player_frame = max_frame(ANIM_PKNEEL_DN) - 1
       kneel_flag = 1
@@ -597,6 +611,35 @@ gosub set_palette
   bend
 
   return
+
+'--------------------------
+.consider_next_baddie_frame
+'--------------------------
+  gosub if_player_far_walk_closer
+  ' if player is nearer, walk ahead more cautiously
+  ' if player is within hitting distance, consider hitting
+  ' if player is trying to hit me, consider fleeing
+
+  return
+
+
+'-------------------------
+.if_player_far_walk_closer
+'-------------------------
+  ' if player is a long distance away, commit to walking closer
+  if abs(px-bx) > 20 then begin
+    baddie_anim = ANIM_PWALK
+    baddie_frame = baddie_frame + 1
+    if baddie_frame >= max_frame(baddie_anim) then baddie_frame = 0
+
+    if bx > px then begin
+      bx = bx - 1
+    bend:else begin
+      bx = bx + 1
+    bend
+  bend
+  return
+
 
 '------------------
 .draw_petscii_frame
@@ -685,21 +728,28 @@ gosub set_palette
 '--------
 .gameplay
 '--------
+  gosub get_user_input
   gosub draw_background
   gosub draw_sprites
   gosub page_flip
-  ' gosub user_input
-  ' gosub game_logic
+  gosub game_logic
+
   goto gameplay
   return
 
 '------------
 .draw_sprites
 '------------
-  gosub draw_player
   gosub draw_baddie
+  gosub draw_player
   return
 
+'----------
+.game_logic
+'----------
+  gosub consider_next_player_frame
+  gosub consider_next_baddie_frame
+  return
 
 '---------
 .page_flip
