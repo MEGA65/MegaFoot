@@ -499,6 +499,7 @@ gosub set_palette
 '--------------
 .get_user_input
 '--------------
+  get a$
   jdir_raw = joy(2)
   jfire = jdir_raw and 128
   jdir = jdir_raw and $7f
@@ -615,31 +616,60 @@ gosub set_palette
 '--------------------------
 .consider_next_baddie_frame
 '--------------------------
+  if baddie_anim <> ANIM_PWALK then begin
+    baddie_frame = mod(baddie_frame + 1, max_frame(baddie_anim))
+  bend
+
   gosub if_player_far_walk_closer
-  ' if player is nearer, walk ahead more cautiously
-  ' if player is within hitting distance, consider hitting
+  gosub if_player_nearer_walk_cautious
+  gosub if_player_hittable_try_hitting
   ' if player is trying to hit me, consider fleeing
 
   return
 
+'------------------------------
+.if_player_hittable_try_hitting
+'------------------------------
+  ' if player is within hitting distance, consider hitting
+  if abs(px-bx) >= 8 and baddie_anim = ANIM_PWALK then begin
+    k = int(rnd(1)*8)
+    if k = 1 then baddie_anim = ANIM_PPUNCH:baddie_frame=0
+    if k = 2 then baddie_anim = ANIM_PKICK:baddie_frame=0
+  bend
+  return
+
+'------------------------------
+.if_player_nearer_walk_cautious
+'------------------------------
+  ' if player is nearer, walk ahead more cautiously
+  if abs(px-bx) > 8 then begin
+    if int(rnd(1)*4) >= 3 then gosub move_baddie_closer
+  bend
+  return
 
 '-------------------------
 .if_player_far_walk_closer
 '-------------------------
   ' if player is a long distance away, commit to walking closer
   if abs(px-bx) > 20 then begin
-    baddie_anim = ANIM_PWALK
-    baddie_frame = baddie_frame + 1
-    if baddie_frame >= max_frame(baddie_anim) then baddie_frame = 0
-
-    if bx > px then begin
-      bx = bx - 1
-    bend:else begin
-      bx = bx + 1
-    bend
+    gosub move_baddie_closer
   bend
   return
 
+
+'------------------
+.move_baddie_closer
+'------------------
+  baddie_anim = ANIM_PWALK
+  baddie_frame = baddie_frame + 1
+  if baddie_frame >= max_frame(baddie_anim) then baddie_frame = 0
+
+  if bx > px then begin
+    bx = bx - 1
+  bend:else begin
+    bx = bx + 1
+  bend
+  return
 
 '------------------
 .draw_petscii_frame

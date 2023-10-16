@@ -6,15 +6,15 @@ DONE- optimise 'grab' data to minimise memory use
   (and make room for baddie frames)
 - add female player option
   (for my daughter to 'connect' with this game better :))
-- add baddie (with some dumb ai)
-- devise some scrolling logic (when to scroll, when not to)
+DONE- add baddie (with some dumb ai)
+DONE- devise some scrolling logic (when to scroll, when not to)
 - bounding box collision checks
 - energy bars
 - sound effects
 - music
 - scrolly text intro
 - title screen
-- joystick support
+DONE- joystick support
 
 stretch goals
 -------------
