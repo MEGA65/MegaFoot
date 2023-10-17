@@ -45,6 +45,9 @@
 #declare px, py ' player x,y
 #declare bx, by ' baddie x,y
 
+#declare player_energy = 18
+#declare baddie_energy = 18
+
 .imgs
 '----
 #define IMG_CLOUDS = 0
@@ -765,14 +768,9 @@ gosub set_palette
   gosub game_logic
 
   gosub draw_energy_bars
-  end
 
   goto gameplay
   return
-
-
-#declare player_energy = 18
-#declare baddie_energy = 18
 
 '----------------
 .draw_energy_bars
