@@ -764,8 +764,43 @@ gosub set_palette
   gosub page_flip
   gosub game_logic
 
+  gosub draw_energy_bars
+  end
+
   goto gameplay
   return
+
+
+#declare player_energy = 18
+#declare baddie_energy = 18
+
+'----------------
+.draw_energy_bars
+'----------------
+  for k = 1 to player_energy
+    gosub draw_blue_triangle
+  next k
+
+  for k = 1 to baddie_energy
+    gosub draw_red_triangle
+  next k
+  
+  return
+
+'------------------
+.draw_blue_triangle
+'------------------
+  cursor 1 + k * 2, 48:print "{x9A}{x12}ß";
+  cursor 1 + k * 2, 49:print "{x1F}{x92}©";
+  return
+
+'------------------
+.draw_red_triangle
+'------------------
+  cursor 78 - k * 2, 48:print "{x96}{x12}©";
+  cursor 78 - k * 2, 49:print "{x1C}{x92}ß";
+  return
+
 
 '------------
 .draw_sprites
