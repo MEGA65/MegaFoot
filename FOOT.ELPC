@@ -3,7 +3,13 @@
 ' A collaborative team-effort game made by the MEGA65 community
 '
 ' Gurce:
-' - Initial background art and Eleven code infrastructure
+' -----
+' - Initial background art
+' - Eleven code infrastructure
+' - Initial Game mechanics
+' Deft:
+' ----
+' - Artistic player head permutations
 
 #output "foot"
 
@@ -46,7 +52,9 @@
 #declare bx, by ' baddie x,y
 
 #declare player_energy = 18
+#declare lag_penergy = 0
 #declare baddie_energy = 18
+#declare lag_benergy = 0
 
 .imgs
 '----
@@ -295,11 +303,17 @@ gosub set_palette
 .show_title
 '----------
   print chr$(147);
+  print chr$(14);  ' lower-case
   print "Way of the Imploding Foot"
   print "========================="
   print "A game made by the MEGA65 community!"
   get key a$
   a$=""
+
+  ' all reverse-char spaces for most of screen
+  edma 3, $f00, 160, $40800
+  print chr$(142);  ' uppercase
+
   return
 
 
@@ -377,6 +391,11 @@ gosub set_palette
   player_anim = form_anim(player_form, FANIM_WALK)
   px = 0 : py = 23
   bx = 60 : by = 23
+
+  player_energy = 18
+  lag_penergy = 0
+  baddie_energy = 18
+  lag_benergy = 0
 
   return
 
@@ -502,7 +521,31 @@ gosub set_palette
 '--------------
 .get_user_input
 '--------------
+  ' keyboard input
+  ' --------------
   get a$
+
+  if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
+  if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
+
+  ' d = toggle between human and duck
+  if a$="d" then begin
+    if player_form = FORM_HUMAN then begin
+      player_form = FORM_DUCK
+    bend:else begin
+      player_form = FORM_HUMAN
+    bend
+    player_anim = form_anim(player_form, FANIM_WALK)
+    player_frame = 0
+    kneel_flag = 0
+  bend
+
+  if a$="<" then player_energy = player_energy - 1
+  if a$=">" then baddie_energy = baddie_energy - 1
+
+
+  ' joystick input
+  ' --------------
   jdir_raw = joy(2)
   jfire = jdir_raw and 128
   jdir = jdir_raw and $7f
@@ -522,8 +565,6 @@ gosub set_palette
   ' ----------------------------
   if jdir=J_RIGHT then gosub move_right
   if jdir=J_LEFT then gosub move_left
-  if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
-  if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
   if jfire=128 and jdir=J_UP_RIGHT and player_anim = form_anim(player_form, FANIM_WALK) then begin
     player_anim = form_anim(player_form, FANIM_PUNCH)
@@ -543,18 +584,6 @@ gosub set_palette
   if jdir=J_DOWN and player_anim = ANIM_PWALK then begin
     player_anim = ANIM_PKNEEL_DN
     player_frame = 0
-  bend
-
-  ' d = toggle between human and duck
-  if a$="d" then begin
-    if player_form = FORM_HUMAN then begin
-      player_form = FORM_DUCK
-    bend:else begin
-      player_form = FORM_HUMAN
-    bend
-    player_anim = form_anim(player_form, FANIM_WALK)
-    player_frame = 0
-    kneel_flag = 0
   bend
 
   return
@@ -775,14 +804,36 @@ gosub set_palette
 '----------------
 .draw_energy_bars
 '----------------
-  for k = 1 to player_energy
-    gosub draw_blue_triangle
-  next k
+  if player_energy <> lag_penergy then begin
+    if lag_penergy < player_energy then begin
+      lag_penergy = lag_penergy + 1
+      k = lag_penergy
+      gosub draw_blue_triangle
+      return
+    bend
+    if lag_penergy > player_energy then begin
+      k = lag_penergy
+      gosub clear_blue_triangle
+      lag_penergy = lag_penergy - 1
+      return
+    bend
+  bend
 
-  for k = 1 to baddie_energy
-    gosub draw_red_triangle
-  next k
-  
+  if baddie_energy <> lag_benergy then begin
+    if lag_benergy < baddie_energy then begin
+      lag_benergy = lag_benergy + 1
+      k = lag_benergy
+      gosub draw_red_triangle
+      return
+    bend
+    if lag_benergy > baddie_energy then begin
+      k = lag_benergy
+      gosub clear_red_triangle
+      lag_benergy = lag_benergy - 1
+      return
+    bend
+  bend
+
   return
 
 '------------------
@@ -792,13 +843,26 @@ gosub set_palette
   cursor 1 + k * 2, 49:print "{x1F}{x92}©";
   return
 
-'------------------
+'-------------------
+.clear_blue_triangle
+'-------------------
+  cursor 1 + k * 2, 48:print "{x92} ";
+  cursor 1 + k * 2, 49:print "{x92} ";
+  return
+
+'-----------------
 .draw_red_triangle
-'------------------
+'-----------------
   cursor 78 - k * 2, 48:print "{x96}{x12}©";
   cursor 78 - k * 2, 49:print "{x1C}{x92}ß";
   return
 
+'------------------
+.clear_red_triangle
+'------------------
+  cursor 78 - k * 2, 48:print "{x92} ";
+  cursor 78 - k * 2, 49:print "{x92} ";
+  return
 
 '------------
 .draw_sprites
@@ -817,8 +881,8 @@ gosub set_palette
 '---------
 .page_flip
 '---------
-  edma 0, $fa0, $50000, $40800
-  edma 0, $fa0, $51000, $ff80000
+  ' edma 0, $fa0, $50000, $40800
+  edma 0, $f00, $51000, $ff80000
 
   ' fill the top part
   edma 3, $f00, $4f, $51000

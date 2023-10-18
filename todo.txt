@@ -9,7 +9,7 @@ DONE- optimise 'grab' data to minimise memory use
 DONE- add baddie (with some dumb ai)
 DONE- devise some scrolling logic (when to scroll, when not to)
 - bounding box collision checks
-- energy bars
+DONE- energy bars
 - sound effects
 - music
 - scrolly text intro
