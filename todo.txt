@@ -15,6 +15,7 @@ DONE- energy bars
 - scrolly text intro
 - title screen
 DONE- joystick support
+- add in deft's player/baddie head art variations
 
 stretch goals
 -------------
