@@ -1,0 +1,115 @@
+' Bounding box collision tester
+' -----------------------------
+#output "boxtest"
+
+
+'------------
+.declarations
+'------------
+#declare x1, y1, x2, y2
+#declare x, y, idx, a$, xinc, yinc
+
+#struct BOX x1, y1, x2, y2
+
+#define BOX1 = 0
+#define BOX2 = 1
+BOX box(2) = [ {x5F}
+  [  5,  5, 10, 10 ], {x5F}
+  [ 15, 15, 20, 20 ] {x5F}
+]
+
+#define KEY_UP = "{x91}"
+#define KEY_DOWN = "{x11}"
+#define KEY_LEFT = "{x9D}"
+#define KEY_RIGHT = "{x1D}"
+
+
+'----
+.main
+'----
+  print chr$(147);chr$(142);
+
+  do while 1
+    gosub draw_boxes
+    gosub check_box_collision
+    gosub get_user_input
+  loop
+
+
+'-------------------
+.check_box_collision
+'-------------------
+  if not (box_x1(BOX2) > box_x2(BOX1) or {x5F}
+          box_x2(BOX2) < box_x1(BOX1) or {x5F}
+          box_y1(BOX2) > box_y2(BOX1) or {x5F}
+          box_y2(BOX2) < box_y1(BOX1)) then {x5F}
+  begin
+    border 2
+  bend:else begin
+    border 7
+  bend
+  return
+
+
+'--------------
+.get_user_input
+'--------------
+  get key a$
+
+  xinc = 0
+  yinc = 0
+
+  if a$ = KEY_UP then yinc = -1
+  if a$ = KEY_DOWN then yinc = 1
+  if a$ = KEY_LEFT then xinc = -1
+  if a$ = KEY_RIGHT then xinc = 1
+
+  box_x1(BOX1) = box_x1(BOX1) + xinc
+  box_y1(BOX1) = box_y1(BOX1) + yinc
+  box_x2(BOX1) = box_x2(BOX1) + xinc
+  box_y2(BOX1) = box_y2(BOX1) + yinc
+
+  bend
+
+
+'----------
+.draw_boxes
+'----------
+  print chr$(147);
+
+  for idx = 0 to 1
+    x1 = box_x1(idx)
+    y1 = box_y1(idx)
+    x2 = box_x2(idx)
+    y2 = box_y2(idx)
+    gosub draw_box
+  next idx
+  return
+
+
+'--------
+.draw_box
+'--------
+  ' draw corners
+  ' ------------
+  cursor x1, y1 : print "{x12}°";
+  cursor x2, y1 : print "{x12}®";
+  cursor x1, y2 : print "{x12}­";
+  cursor x2, y2 : print "{x12}½";
+
+  ' draw horizontals
+  ' ----------------
+  for x = x1+1 to x2-1
+    cursor x,y1 : print "{x12}À";
+    cursor x,y2 : print "{x12}C";
+  next x
+
+  ' draw verticals
+  ' --------------
+  for y = y1+1 to y2-1
+    cursor x1,y : print "{x12}B";
+    cursor x2,y : print "{x12}B";
+  next y
+
+  return
+ÿ
