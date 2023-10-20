@@ -13,10 +13,23 @@
 
 #define BOX1 = 0
 #define BOX2 = 1
-BOX box(2) = [ {x5F}
-  [  5,  5, 10, 10 ], {x5F}
-  [ 15, 15, 20, 20 ] {x5F}
-]
+
+#define X1 = 0
+#define Y1 = 1
+#define X2 = 2
+#define Y2 = 3
+
+#declare bx(2,3)
+
+bx(BOX1, X1) = 5
+bx(BOX1, Y1) = 5
+bx(BOX1, X2) = 10
+bx(BOX1, Y2) = 10
+
+bx(BOX2, X1) = 15
+bx(BOX2, Y1) = 15
+bx(BOX2, X2) = 20
+bx(BOX2, Y2) = 20
 
 #define KEY_UP = "{x91}"
 #define KEY_DOWN = "{x11}"
@@ -39,10 +52,10 @@ BOX box(2) = [ {x5F}
 '-------------------
 .check_box_collision
 '-------------------
-  if not (box_x1(BOX2) > box_x2(BOX1) or {x5F}
-          box_x2(BOX2) < box_x1(BOX1) or {x5F}
-          box_y1(BOX2) > box_y2(BOX1) or {x5F}
-          box_y2(BOX2) < box_y1(BOX1)) then {x5F}
+  if not (bx(BOX2, X1) > bx(BOX1, X2) or {x5F}
+          bx(BOX2, X2) < bx(BOX1, X1) or {x5F}
+          bx(BOX2, Y1) > bx(BOX1, Y2) or {x5F}
+          bx(BOX2, Y2) < bx(BOX1, Y1)) then {x5F}
   begin
     border 2
   bend:else begin
@@ -64,10 +77,10 @@ BOX box(2) = [ {x5F}
   if a$ = KEY_LEFT then xinc = -1
   if a$ = KEY_RIGHT then xinc = 1
 
-  box_x1(BOX1) = box_x1(BOX1) + xinc
-  box_y1(BOX1) = box_y1(BOX1) + yinc
-  box_x2(BOX1) = box_x2(BOX1) + xinc
-  box_y2(BOX1) = box_y2(BOX1) + yinc
+  bx(BOX1, X1) = bx(BOX1, X1) + xinc
+  bx(BOX1, Y1) = bx(BOX1, Y1) + yinc
+  bx(BOX1, X2) = bx(BOX1, X2) + xinc
+  bx(BOX1, Y2) = bx(BOX1, Y2) + yinc
 
   bend
 
@@ -77,11 +90,11 @@ BOX box(2) = [ {x5F}
 '----------
   print chr$(147);
 
-  for idx = 0 to 1
-    x1 = box_x1(idx)
-    y1 = box_y1(idx)
-    x2 = box_x2(idx)
-    y2 = box_y2(idx)
+  for idx = BOX1 to BOX2
+    x1 = bx(idx, X1)
+    y1 = bx(idx, Y1)
+    x2 = bx(idx, X2)
+    y2 = bx(idx, Y2)
     gosub draw_box
   next idx
   return
