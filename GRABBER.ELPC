@@ -1,3 +1,4 @@
+.docs
 ' Grabber Tool - ported to Eleven (for easier maintenance)
 ' ------------
 '
@@ -7,6 +8,7 @@
 ' - Then use cursor keys to move to bottom-right point & press 'space'
 ' - Press '-' and '+' keys to move between previous and next frames
 ' - Press 'c' to redraw current frame
+' - Press 'd' to delete the current frame
 ' - Press 'l' then a frame# to load that frame
 ' - Press 'x' to exit program
 ' - F1 = load char+color .bin file
@@ -14,6 +16,53 @@
 ' - F5 = save optimized+repaired .bin file
 
 #output "grabber"
+
+
+' Char+Color File Format (F1/F3 keys)
+' ----------------------
+' WORD: prog-address (ignored)
+' BYTE: # of frames
+' 
+' FRAME #0
+' --------
+'   BYTE: x
+'   BYTE: y
+'   BYTE: w
+'   BYTE: h
+'   BYTE[x*y]: char data
+'   BYTE[x*y]: color data
+'
+' FRAME #1
+' --------
+'   (as before...)
+'
+' FRAME #n
+' --------
+'   (as before...)
+
+
+
+' Color-only File Format (F5 key)
+' ----------------------
+' WORD: prog-address (ignored)
+' BYTE: # of frames
+' 
+' FRAME #0
+' --------
+'   BYTE: x
+'   BYTE: y
+'   BYTE: w
+'   BYTE: h
+'   BYTE[x*y]: color data
+'
+' FRAME #1
+' --------
+'   (as before...)
+'
+' FRAME #n
+' --------
+'   (as before...)
+
 
 
 '--------
@@ -35,12 +84,24 @@
 #declare dest_char_ptr, dest_clr_ptr
 #declare fname$
 #declare cval
+#declare start_ptr, end_ptr, curr_ptr
 
 #define STORE_START_POS = 0
 #define STORE_END_POS = 1
 
 #declare store_state  ' are we storing start/end pos char/colour details
 
+#define KEY_UP = "{x91}"
+#define KEY_DOWN = "{x11}"
+#define KEY_LEFT = "{x9D}"
+#define KEY_RIGHT = "{x1D}"
+
+#define KEY_F1 = "{x85}"
+#define KEY_F3 = "{x86}"
+#define KEY_F4 = "{x8A}"
+#define KEY_F5 = "{x87}"
+#define KEY_F7 = "{x88}"
+#define KEY_F8 = "{x8C}"
 
 '----
 .main
@@ -59,7 +120,7 @@
     gosub store_state_info
     gosub draw_cursor
 
-    gosub read_input
+    gosub get_user_input
 
     gosub show_coords
   loop
@@ -83,15 +144,17 @@
   return
 
 
-'----------
-.read_input
-'----------
+'--------------
+.get_user_input
+'--------------
   getkey a$
   if a$ <> " " then gosub restore_char_under_cursor
-  if a$ = "{x9D}" and x > 0 then x = x - 1
-  if a$ = "{x1D}" and x < 79 then x = x + 1
-  if a$ = "{x91}" and y > 0 then y = y - 1
-  if a$ = "{x11}" and y < 49 then y = y + 1
+  if a$ = KEY_LEFT and x > 0 then x = x - 1
+  if a$ = KEY_RIGHT and x < 79 then x = x + 1
+  if a$ = KEY_UP and y > 0 then y = y - 1
+  if a$ = KEY_DOWN and y < 49 then y = y + 1
+  if a$ = "d" then gosub delete_frame
+
   if a$ = "c" then begin
     print "{x93}";
     curr_frame = 0
@@ -250,6 +313,97 @@
   gosub draw_curr_frame
   return
 
+'------------
+.delete_frame
+'------------
+  gosub get_end_ptr
+  end_ptr = ptr
+
+  ' decrement frame count
+  frame_count = frame_count - 1
+  poke $42000, frame_count
+
+  if curr_frame = frame_count then begin
+    curr_frame = curr_frame - 1
+
+  bend : else begin
+    gosub shift_remaining_frames_along
+
+  bend
+
+  gosub draw_curr_frame
+
+  return
+
+
+'----------------------------
+.shift_remaining_frames_along
+'----------------------------
+  gosub get_curr_frame_ptr
+  curr_ptr = ptr
+
+  start_ptr = curr_ptr + peek(curr_ptr+2) * peek(curr_ptr+3) * 2 + 4
+
+  ' print "curr_ptr = ";hex$(curr_ptr)
+  ' print "start_ptr = ";hex$(start_ptr)
+  ' print "end_ptr = ";hex$(end_ptr)
+  ' get key a$
+  ' a$=""
+
+  for ptr = start_ptr to end_ptr
+    poke curr_ptr, peek(ptr)
+    curr_ptr = curr_ptr + 1
+  next ptr
+  
+  return
+
+
+'-----------
+.get_end_ptr
+'-----------
+  frame_count = peek($42000)
+  ptr = $42001
+  frmidx = 0
+  if frmidx >= frame_count then begin
+    cursor 0,0
+    print clr_line_right$;"invalid block#!"
+    return
+  bend
+
+  ' traverse to find block
+  for frmidx = 0 to frame_count - 1
+    ' skip x, y
+    ptr = ptr + 2
+    frmw = peek(ptr)
+    ptr = ptr + 1
+    frmh = peek(ptr)
+    ptr = ptr + 1
+
+    ptr = ptr + frmw * frmh * 2
+  next frmidx
+
+  return
+
+
+'------------------
+.get_curr_frame_ptr
+'------------------
+  ' traverse to find block
+  ptr = $42001
+  for frmidx = 0 to frame_count
+    if frmidx = curr_frame then return
+    ' skip x, y
+    ptr = ptr + 2
+    frmw = peek(ptr)
+    ptr = ptr + 1
+    frmh = peek(ptr)
+    ptr = ptr + 1
+
+    ptr = ptr + frmw * frmh * 2
+  next frmidx
+  ptr = 0
+  return
+
 '---------------
 .draw_curr_frame
 '---------------
@@ -262,22 +416,10 @@
     return
   bend
 
-  ' traverse to find block
-  do while 1
-    if frmidx = curr_frame then goto _found_it
-    ' skip x, y
-    ptr = ptr + 2
-    frmw = peek(ptr)
-    ptr = ptr + 1
-    frmh = peek(ptr)
-    ptr = ptr + 1
+  gosub get_curr_frame_ptr
 
-    ptr = ptr + frmw * frmh * 2
-
-    frmidx = frmidx + 1
-  loop
+  if ptr = 0 then print "not found!" : return
   
-._found_it
   x = peek(ptr)
   ptr = ptr + 1
   y = peek(ptr)

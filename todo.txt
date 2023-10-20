@@ -21,3 +21,17 @@ stretch goals
 -------------
 - story line cut scenes
 - add big baddie for final fight
+
+Housekeeping todo:
+-----------------
+- split layers and player frames apart
+  (so that in future, people can add new layers, or player frames more comfortably)
+- split player head from body
+  (so that player can have one of multiple heads. E.g. deft's new ones)
+  - deft's art is here:
+    - https://discord.com/channels/719326990221574164/805252939593416705/1164133584941097060
+- update 'grabber' tool to:
+  - edit existing frames
+  - define hit boxes
+  - load/save hitboxes
+- update code to load up newly structured layers + player-frames + hit-boxes
