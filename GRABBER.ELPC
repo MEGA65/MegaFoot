@@ -96,6 +96,7 @@
 #declare start_ptr, end_ptr, curr_ptr, src_ptr, dest_ptr, sz, k, ln
 #declare b(50,3)  ' hitboxes
 #declare x1, y1, x2, y2
+#declare hb_sel = 0, hb_mode
 
 #define STORE_START_POS = 0
 #define STORE_END_POS = 1
@@ -114,6 +115,19 @@
 #define KEY_F7 = "{x88}"
 #define KEY_F8 = "{x8C}"
 #define KEY_ESC = chr$(27)
+#define KEY_REV_ON = "{x12}"
+#define KEY_REV_OFF = "{x92}"
+#define KEY_RETURN = chr$(13)
+
+#define OP_COPY = 0
+#define OP_MIX  = 1
+#define OP_SWAP = 2
+#define OP_FILL = 3
+
+#define HB_MODE_BROWSE     = 0
+#define HB_MODE_SEL_COORD1 = 1
+#define HB_MODE_SEL_COORD2 = 2
+#define HB_MODE_COMPLETE   = 3
 
 .offsets
 #define OFFSET_DATA_SIZE  = 0
@@ -130,11 +144,6 @@
 #define FRM_OFFSET_HB_FEET    = 12
 #define FRM_OFFSET_HB_ATTACK  = 16
 #define FRM_OFFSET_DATA       = 20
-
-#define OP_COPY = 0
-#define OP_MIX  = 1
-#define OP_SWAP = 2
-#define OP_FILL = 3
 
 '----
 .main
@@ -176,6 +185,24 @@
   print clr_line_right$;
   return
 
+
+'-----------
+.enter_coord
+'-----------
+  do while 1
+    gosub store_state_info
+    gosub draw_cursor
+    get key a$
+    if a$ <> " " then gosub restore_char_under_cursor
+    if a$ = KEY_LEFT and x > 0 then x = x - 1
+    if a$ = KEY_RIGHT and x < 79 then x = x + 1
+    if a$ = KEY_UP and y > 0 then y = y - 1
+    if a$ = KEY_DOWN and y < 49 then y = y + 1
+
+    if a$=KEY_RETURN then exit
+  loop
+
+  return
 
 '--------------
 .get_user_input
@@ -224,9 +251,16 @@
 '--------------
 .edit_hit_boxes
 '--------------
-  gosub show_hitbox_table
+  hb_mode = HB_MODE_BROWSE
+
+  do while 1
+    gosub show_hitbox_table
   ' gosub draw_hitboxes
-  ' gosub HB_get_user_input
+    gosub HB_get_user_input
+
+    if a$="x" or a$=KEY_ESC then print chr$(147);:gosub draw_curr_frame:exit
+  loop
+
   return
 
 '-----------------
@@ -235,27 +269,99 @@
   gosub get_curr_frame_ptr
   curr_ptr = ptr
 
+  if hb_sel = 0 then print KEY_REV_ON;:else print KEY_REV_OFF;
   cursor 40,40:print KEY_ESC;"q  head: ";
   k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
 
+  if hb_sel = 1 then print KEY_REV_ON;:else print KEY_REV_OFF;
   cursor 40,41:print KEY_ESC;"q torso: ";
-  k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
+  k = FRM_OFFSET_HB_TORSO:gosub show_hitbox_coords
 
+  if hb_sel = 2 then print KEY_REV_ON;:else print KEY_REV_OFF;
   cursor 40,42:print KEY_ESC;"q  feet: "; 
-  k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
+  k = FRM_OFFSET_HB_FEET:gosub show_hitbox_coords
 
+  if hb_sel = 3 then print KEY_REV_ON;:else print KEY_REV_OFF;
   cursor 40,43:print KEY_ESC;"qattack: ";
-  k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
+  k = FRM_OFFSET_HB_ATTACK:gosub show_hitbox_coords
+
+  print KEY_REV_OFF;
+
+  gosub get_selected_coords
+
   return
 
 
-'------------------
-.show_hitbox_coords
-'------------------
+'--------------------------
+.get_selected_offset_into_k
+'--------------------------
+  if hb_sel = 0 then k = FRM_OFFSET_HB_HEAD
+  if hb_sel = 1 then k = FRM_OFFSET_HB_TORSO
+  if hb_sel = 2 then k = FRM_OFFSET_HB_FEET
+  if hb_sel = 3 then k = FRM_OFFSET_HB_ATTACK
+  return
+
+
+'-------------------
+.get_selected_coords
+'-------------------
+  gosub get_selected_offset_into_k
+  gosub peek_selected_coords_into_x1y1x2y2
+  return
+  
+
+'-----------------
+.HB_get_user_input
+'-----------------
+  get key a$
+  if a$=KEY_UP and hb_sel > 0 then hb_sel = hb_sel - 1
+  if a$=KEY_DOWN and hb_sel < 3 then hb_sel = hb_sel + 1
+  if a$=KEY_RETURN then begin
+    hb_mode = hb_mode + 1
+
+    if hb_mode = HB_MODE_SEL_COORD1 then begin
+      gosub peek_selected_coords_into_x1y1x2y2
+      x = x1 : y = y1
+      gosub enter_coord
+      x1 = x
+      y1 = y
+      hb_mode = hb_mode + 1
+    bend
+
+    if hb_mode = HB_MODE_SEL_COORD2 then begin
+      gosub enter_coord
+      x2 = x
+      y2 = y
+      hb_mode = hb_mode + 1
+    bend
+
+    if hb_mode = HB_MODE_COMPLETE then begin
+      gosub get_selected_offset_into_k
+
+      poke curr_ptr + k    , x1
+      poke curr_ptr + k + 1, y1
+      poke curr_ptr + k + 2, x2
+      poke curr_ptr + k + 3, y2
+
+      hb_mode = HB_MODE_BROWSE
+    bend
+  bend
+
+  return
+
+'----------------------------------
+.peek_selected_coords_into_x1y1x2y2
+'----------------------------------
   x1 = peek(curr_ptr + k)
   y1 = peek(curr_ptr + k + 1)
   x2 = peek(curr_ptr + k + 2)
   y2 = peek(curr_ptr + k + 3)
+  return
+
+'------------------
+.show_hitbox_coords
+'------------------
+  gosub peek_selected_coords_into_x1y1x2y2
   print x1;",";y1;",";x2;",";y2;
   return
 
