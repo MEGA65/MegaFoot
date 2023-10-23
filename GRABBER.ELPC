@@ -46,19 +46,6 @@
 ' --------
 '   (as before...)
 
-#define OFFSET_DATA_SIZE = 2
-#define OFFSET_NUM_FRAME = 3
-#define OFFSET_X         = 4
-#define OFFSET_Y         = 5
-#define OFFSET_W         = 6
-#define OFFSET_H         = 7
-#define OFFSET_HITBOXES  = 8
-#define OFFSET_HB_HEAD   = 8
-#define OFFSET_HB_TORSO  = 12
-#define OFFSET_HB_FEET   = 16
-#define OFFSET_HB_ATTACK = 20
-#define OFFSET_DATA      = 24
-
 ' Color-only File Format (F5 key)
 ' ----------------------
 ' WORD: prog-address (ignored)
@@ -106,7 +93,7 @@
 #declare dest_char_ptr, dest_clr_ptr
 #declare fname$
 #declare cval
-#declare start_ptr, end_ptr, curr_ptr
+#declare start_ptr, end_ptr, curr_ptr, src_ptr, dest_ptr, sz, k, ln
 #declare b(50,3)  ' hitboxes
 
 #define STORE_START_POS = 0
@@ -125,6 +112,27 @@
 #define KEY_F5 = "{x87}"
 #define KEY_F7 = "{x88}"
 #define KEY_F8 = "{x8C}"
+
+.offsets
+#define OFFSET_DATA_SIZE  = 0
+#define OFFSET_NUM_FRAMES = 2
+#define OFFSET_FRAME0     = 3
+
+#define FRM_OFFSET_X          = 0
+#define FRM_OFFSET_Y          = 1
+#define FRM_OFFSET_W          = 2
+#define FRM_OFFSET_H          = 3
+#define FRM_OFFSET_HITBOXES   = 4
+#define FRM_OFFSET_HB_HEAD    = 4
+#define FRM_OFFSET_HB_TORSO   = 8
+#define FRM_OFFSET_HB_FEET    = 12
+#define FRM_OFFSET_HB_ATTACK  = 16
+#define FRM_OFFSET_DATA       = 20
+
+#define OP_COPY = 0
+#define OP_MIX  = 1
+#define OP_SWAP = 2
+#define OP_FILL = 3
 
 '----
 .main
@@ -224,7 +232,7 @@
 '-----------------
   gosub get_curr_frame_ptr
   curr_ptr = ptr
-  curr_ptr = curr_ptr + OFFSET_HITBOXES
+  curr_ptr = curr_ptr + FRM_OFFSET_HITBOXES
   cursor 50,40:print "  head: ";
   cursor 50,41:print " torso: ";
   cursor 50,42:print "  feet: "; 
@@ -238,8 +246,52 @@
   if fname$ = "" then return
 
   bload (fname$),p($42000)
+  gosub one_off_repair
   return
 
+'--------------
+.one_off_repair
+'--------------
+  ' inject spaces where needed
+  src_ptr = $42000
+  dest_ptr = $50000
+
+  frame_count = peek(src_ptr)
+  poke dest_ptr + OFFSET_NUM_FRAMES, frame_count
+  src_ptr = src_ptr + 1
+
+  dest_ptr = dest_ptr + OFFSET_FRAME0
+  sz = OFFSET_FRAME0
+
+  for k = 0 to frame_count - 1
+
+    poke dest_ptr + FRM_OFFSET_X, peek(src_ptr)
+    src_ptr = src_ptr + 1
+    poke dest_ptr + FRM_OFFSET_Y, peek(src_ptr)
+    src_ptr = src_ptr + 1
+    frmw = peek(src_ptr)
+    poke dest_ptr + FRM_OFFSET_W, frmw
+    src_ptr = src_ptr + 1
+    frmh = peek(src_ptr)
+    poke dest_ptr + FRM_OFFSET_H, frmh
+    src_ptr = src_ptr + 1
+
+    ln = FRM_OFFSET_DATA - FRM_OFFSET_HITBOXES
+    edma OP_FILL, ln, 0, dest_ptr + FRM_OFFSET_HITBOXES
+    dest_ptr = dest_ptr + ln
+
+    ln = frmw * frmh * 2
+    edma OP_COPY, ln, src_ptr, dest_ptr + FRM_OFFSET_DATA
+
+    dest_ptr = dest_ptr + FRM_OFFSET_DATA + ln
+    sz = sz + FRM_OFFSET_DATA + ln
+    
+  next k
+
+  dest_ptr = $50000
+  wpoke dest_ptr + OFFSET_DATA_SIZE, sz
+
+  return
 
 '--------
 .save_bin
@@ -487,8 +539,8 @@
   dest_clr_ptr = $ff80000 + x + y * 80
 
   for yidx = y to endy
-    edma 0, frmw, ptr, dest_char_ptr
-    edma 0, frmw, clr_ptr, dest_clr_ptr
+    edma OP_COPY, frmw, ptr, dest_char_ptr
+    edma OP_COPY, frmw, clr_ptr, dest_clr_ptr
     ptr = ptr + frmw
     clr_ptr = clr_ptr + frmw
     dest_char_ptr = dest_char_ptr + 80
