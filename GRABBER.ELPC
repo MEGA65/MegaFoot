@@ -88,13 +88,14 @@
 #declare start_char, start_color, end_char, end_color
 #declare startx, starty, endx, endy
 #declare curr_frame
-#declare clr_ptr
+#declare src_char_ptr, src_clr_ptr
 #declare a$, xidx, yidx
 #declare dest_char_ptr, dest_clr_ptr
 #declare fname$
 #declare cval
 #declare start_ptr, end_ptr, curr_ptr, src_ptr, dest_ptr, sz, k, ln
 #declare b(50,3)  ' hitboxes
+#declare x1, y1, x2, y2
 
 #define STORE_START_POS = 0
 #define STORE_END_POS = 1
@@ -112,6 +113,7 @@
 #define KEY_F5 = "{x87}"
 #define KEY_F7 = "{x88}"
 #define KEY_F8 = "{x8C}"
+#define KEY_ESC = chr$(27)
 
 .offsets
 #define OFFSET_DATA_SIZE  = 0
@@ -232,12 +234,31 @@
 '-----------------
   gosub get_curr_frame_ptr
   curr_ptr = ptr
-  curr_ptr = curr_ptr + FRM_OFFSET_HITBOXES
-  cursor 50,40:print "  head: ";
-  cursor 50,41:print " torso: ";
-  cursor 50,42:print "  feet: "; 
-  cursor 50,43:print "attack: ";
+
+  cursor 40,40:print KEY_ESC;"q  head: ";
+  k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
+
+  cursor 40,41:print KEY_ESC;"q torso: ";
+  k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
+
+  cursor 40,42:print KEY_ESC;"q  feet: "; 
+  k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
+
+  cursor 40,43:print KEY_ESC;"qattack: ";
+  k = FRM_OFFSET_HB_HEAD:gosub show_hitbox_coords
   return
+
+
+'------------------
+.show_hitbox_coords
+'------------------
+  x1 = peek(curr_ptr + k)
+  y1 = peek(curr_ptr + k + 1)
+  x2 = peek(curr_ptr + k + 2)
+  y2 = peek(curr_ptr + k + 3)
+  print x1;",";y1;",";x2;",";y2;
+  return
+
 
 '--------
 .load_bin
@@ -278,11 +299,11 @@
 
     ln = FRM_OFFSET_DATA - FRM_OFFSET_HITBOXES
     edma OP_FILL, ln, 0, dest_ptr + FRM_OFFSET_HITBOXES
-    dest_ptr = dest_ptr + ln
 
     ln = frmw * frmh * 2
     edma OP_COPY, ln, src_ptr, dest_ptr + FRM_OFFSET_DATA
 
+    src_ptr = src_ptr + ln
     dest_ptr = dest_ptr + FRM_OFFSET_DATA + ln
     sz = sz + FRM_OFFSET_DATA + ln
     
@@ -334,11 +355,11 @@
     endx = x + frmw - 1
     endy = y + frmh - 1
 
-    clr_ptr = ptr + frmw * frmh
+    src_clr_ptr = ptr + frmw * frmh
     
     for yidx = 0 to endy - y
       for xidx = 0 to endx - x
-        cval = peek(clr_ptr + xidx + yidx * frmw)
+        cval = peek(src_clr_ptr + xidx + yidx * frmw)
         if peek(ptr + xidx + yidx * frmw) = 32 then begin
           cval = $ff
         bend
@@ -484,17 +505,13 @@
 .get_curr_frame_ptr
 '------------------
   ' traverse to find block
-  ptr = $42001
+  ptr = $50000 + OFFSET_FRAME0
   for frmidx = 0 to frame_count
     if frmidx = curr_frame then return
-    ' skip x, y
-    ptr = ptr + 2
-    frmw = peek(ptr)
-    ptr = ptr + 1
-    frmh = peek(ptr)
-    ptr = ptr + 1
+    frmw = peek(ptr + FRM_OFFSET_W)
+    frmh = peek(ptr + FRM_OFFSET_H)
 
-    ptr = ptr + frmw * frmh * 2
+    ptr = ptr + FRM_OFFSET_DATA + frmw * frmh * 2
   next frmidx
   ptr = 0
   return
@@ -502,8 +519,8 @@
 '---------------
 .draw_curr_frame
 '---------------
-  frame_count = peek($42000)
-  ptr = $42001
+  frame_count = peek($50000 + OFFSET_NUM_FRAMES)
+  ptr = $50000 + OFFSET_FRAME0
   frmidx = 0
   if frmidx >= frame_count then begin
     cursor 0,0
@@ -515,14 +532,10 @@
 
   if ptr = 0 then print "not found!" : return
   
-  x = peek(ptr)
-  ptr = ptr + 1
-  y = peek(ptr)
-  ptr = ptr + 1
-  frmw = peek(ptr)
-  ptr = ptr + 1
-  frmh = peek(ptr)
-  ptr = ptr + 1
+  x = peek(ptr + FRM_OFFSET_X)
+  y = peek(ptr + FRM_OFFSET_Y)
+  frmw = peek(ptr + FRM_OFFSET_W)
+  frmh = peek(ptr + FRM_OFFSET_H)
 
   endx = x + frmw - 1
   endy = y + frmh - 1
@@ -531,18 +544,19 @@
   print "x=";x;", y=";y;", w=";frmw;", h=";frmh;
   print ", ptr=$";hex$(ptr);
   print "{x11}";chr$(27);"j";clr_line_right$;"frame=";curr_frame;
-  print ", nxt=$";hex$(ptr + frmw * frmh * 2);
+  print ", nxt=$";hex$(ptr + FRM_OFFSET_DATA + frmw * frmh * 2);
 
-  clr_ptr = ptr + frmw * frmh
+  src_char_ptr = ptr + FRM_OFFSET_DATA
+  src_clr_ptr = ptr + FRM_OFFSET_DATA + frmw * frmh
 
   dest_char_ptr =$40800 + x + y * 80
   dest_clr_ptr = $ff80000 + x + y * 80
 
   for yidx = y to endy
-    edma OP_COPY, frmw, ptr, dest_char_ptr
-    edma OP_COPY, frmw, clr_ptr, dest_clr_ptr
-    ptr = ptr + frmw
-    clr_ptr = clr_ptr + frmw
+    edma OP_COPY, frmw, src_char_ptr, dest_char_ptr
+    edma OP_COPY, frmw, src_clr_ptr, dest_clr_ptr
+    src_char_ptr = src_char_ptr + frmw
+    src_clr_ptr = src_clr_ptr + frmw
     dest_char_ptr = dest_char_ptr + 80
     dest_clr_ptr = dest_clr_ptr + 80
   next yidx
