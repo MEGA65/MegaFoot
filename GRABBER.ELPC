@@ -96,7 +96,7 @@
 #declare start_ptr, end_ptr, curr_ptr, src_ptr, dest_ptr, sz, k, ln
 #declare b(50,3)  ' hitboxes
 #declare x1, y1, x2, y2
-#declare hb_sel = 0, hb_mode
+#declare hb_sel = 0, hb_mode, idx
 
 #define STORE_START_POS = 0
 #define STORE_END_POS = 1
@@ -144,6 +144,13 @@
 #define FRM_OFFSET_HB_FEET    = 12
 #define FRM_OFFSET_HB_ATTACK  = 16
 #define FRM_OFFSET_DATA       = 20
+
+#declare bx_offs(3)
+bx_offs(0) = FRM_OFFSET_HB_HEAD
+bx_offs(1) = FRM_OFFSET_HB_TORSO
+bx_offs(2) = FRM_OFFSET_HB_FEET
+bx_offs(3) = FRM_OFFSET_HB_ATTACK
+
 
 '----
 .main
@@ -193,7 +200,7 @@
     gosub store_state_info
     gosub draw_cursor
     get key a$
-    if a$ <> " " then gosub restore_char_under_cursor
+    if a$ <> KEY_RETURN then gosub restore_char_under_cursor
     if a$ = KEY_LEFT and x > 0 then x = x - 1
     if a$ = KEY_RIGHT and x < 79 then x = x + 1
     if a$ = KEY_UP and y > 0 then y = y - 1
@@ -224,7 +231,7 @@
     curr_frame = curr_frame - 1
     gosub draw_curr_frame
   bend
-  if a$="=" and curr_frame < peek($42000)-1 then begin
+  if a$="=" and curr_frame < peek($50002)-1 then begin
     curr_frame = curr_frame + 1
     gosub draw_curr_frame
   bend
@@ -255,13 +262,73 @@
 
   do while 1
     gosub show_hitbox_table
-  ' gosub draw_hitboxes
+    gosub draw_hitboxes
     gosub HB_get_user_input
 
-    if a$="x" or a$=KEY_ESC then print chr$(147);:gosub draw_curr_frame:exit
+    if a$="x" or a$=KEY_ESC or a$="f7" then begin
+      print chr$(147);
+      gosub draw_curr_frame
+      exit
+    bend
   loop
 
   return
+
+#define CHAR_BOX_TL = 112
+#define CHAR_BOX_TR = 110
+#define CHAR_BOX_BL = 109
+#define CHAR_BOX_BR = 125
+#define CHAR_HORZ   = 64
+#define CHAR_VERT   = 93
+#define CHAR_SPACE  = 32
+
+'---------
+.draw_char
+'---------
+  if peek($40800 + x + y * 80) <> CHAR_SPACE then k = k + 128
+  poke $40800 + x + y * 80, k
+  return
+
+'-------------
+.draw_hitboxes
+'-------------
+  gosub draw_curr_frame
+  gosub get_curr_frame_ptr
+  for idx = 0 to 3
+    x1 = peek(ptr + bx_offs(idx))
+    y1 = peek(ptr + bx_offs(idx) + 1)
+    x2 = peek(ptr + bx_offs(idx) + 2)
+    y2 = peek(ptr + bx_offs(idx) + 3)
+
+    if not (x1=0 and y1=0 and x2=0 and y2=0) then begin
+
+      ' draw corners
+      ' ------------
+      x = x1 : y = y1 : k = CHAR_BOX_TL : gosub draw_char
+      x = x2 : y = y1 : k = CHAR_BOX_TR : gosub draw_char
+      x = x1 : y = y2 : k = CHAR_BOX_BL : gosub draw_char
+      x = x2 : y = y2 : k = CHAR_BOX_BR : gosub draw_char
+
+      ' draw horizontals
+      ' ----------------
+      for x = x1+1 to x2-1
+        y = y1 : k = CHAR_HORZ : gosub draw_char
+        y = y2 : k = CHAR_HORZ : gosub draw_char
+      next x
+
+      ' draw verticals
+      ' --------------
+      for y = y1+1 to y2-1
+        x = x1 : k = CHAR_VERT : gosub draw_char
+        x = x2 : k = CHAR_VERT : gosub draw_char
+      next y
+
+    bend
+
+  next idx
+
+  return
+
 
 '-----------------
 .show_hitbox_table
@@ -316,11 +383,21 @@
   get key a$
   if a$=KEY_UP and hb_sel > 0 then hb_sel = hb_sel - 1
   if a$=KEY_DOWN and hb_sel < 3 then hb_sel = hb_sel + 1
+
+  if a$="-" and curr_frame > 0 then begin
+    curr_frame = curr_frame - 1
+    gosub draw_curr_frame
+  bend
+  if a$="=" and curr_frame < peek($50002)-1 then begin
+    curr_frame = curr_frame + 1
+    gosub draw_curr_frame
+  bend
+
   if a$=KEY_RETURN then begin
     hb_mode = hb_mode + 1
 
     if hb_mode = HB_MODE_SEL_COORD1 then begin
-      gosub peek_selected_coords_into_x1y1x2y2
+      gosub get_selected_coords
       x = x1 : y = y1
       gosub enter_coord
       x1 = x
