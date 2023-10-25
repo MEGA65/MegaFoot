@@ -34,6 +34,7 @@ PROGRESS- split layers and player frames apart
   - add/edit existing frames
   DONE- define hit boxes
   DONE- load/save hitboxes
+  - repair last remnants of $42000 access
 - update code to load up newly structured layers + player-frames + hit-boxes
 - Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
 

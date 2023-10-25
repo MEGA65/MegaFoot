@@ -28,9 +28,14 @@
 
 .petscii vars
 '------------
+#define FORM_LAYER = 0
+#define FORM_HUMAN = 1
+#define FORM_DUCK = 2
+#define FORM_MAX = 3
+
 #declare data_addr = $42000
-#declare max_frames
-#declare frame_addr(64)
+#declare max_frames(FORM_MAX)
+#declare frame_addr(FORM_MAX, 20)
 #declare frame_dblup_addr(64)
 
 #declare jdir_raw, jfire, jdir
@@ -66,41 +71,42 @@
 #define IMG_HI_GROUND = 5
 #define IMG_LO_GROUND = 6
 #define IMG_SUN = 7
-#define IMG_PWALK1 = 8
-#define IMG_PWALK2 = 9
-#define IMG_PWALK3 = 10
-#define IMG_PPUNCH1 = 11
-#define IMG_PPUNCH2 = 12
-#define IMG_PPUNCH3 = 13
-#define IMG_PKICK1 = 14
-#define IMG_PKICK2 = 15
-#define IMG_PKICK3 = 16
-#define IMG_PKNEEL1 = 17
-#define IMG_PKNEEL2 = 18
-#define IMG_PKNEEL3 = 19
-#define IMG_PKPUNCH1 = 20
-#define IMG_PKPUNCH2 = 21
-#define IMG_PKPUNCH3 = 22
-#define IMG_PKKICK1 = 23
-#define IMG_PKKICK2 = 24
-#define IMG_PKKICK3 = 25
-#define IMG_PDIE1 = 26
-#define IMG_PDIE2 = 27
-#define IMG_PDIE3 = 28
-#define IMG_PDIE4 = 29
-#define IMG_PDIE5 = 30
 
-#define IMG_DWALK1 = 31
-#define IMG_DWALK2 = 32
-#define IMG_DWALK3 = 33
-#define IMG_DQUACK1 = 34
-#define IMG_DQUACK2 = 35
-#define IMG_DQUACK3 = 36
-#define IMG_DDIE1 = 37
-#define IMG_DDIE2 = 38
-#define IMG_DDIE3 = 39
-#define IMG_DDIE4 = 40
-#define IMG_DDIE5 = 41
+#define IMG_PWALK1 = 0
+#define IMG_PWALK2 = 1
+#define IMG_PWALK3 = 2
+#define IMG_PPUNCH1 = 3
+#define IMG_PPUNCH2 = 4
+#define IMG_PPUNCH3 = 5
+#define IMG_PKICK1 = 6
+#define IMG_PKICK2 = 7
+#define IMG_PKICK3 = 8
+#define IMG_PKNEEL1 = 9
+#define IMG_PKNEEL2 = 10
+#define IMG_PKNEEL3 = 11
+#define IMG_PKPUNCH1 = 12
+#define IMG_PKPUNCH2 = 13
+#define IMG_PKPUNCH3 = 14
+#define IMG_PKKICK1 = 15
+#define IMG_PKKICK2 = 16
+#define IMG_PKKICK3 = 17
+#define IMG_PDIE1 = 18
+#define IMG_PDIE2 = 19
+#define IMG_PDIE3 = 20
+#define IMG_PDIE4 = 21
+#define IMG_PDIE5 = 22
+
+#define IMG_DWALK1 = 0
+#define IMG_DWALK2 = 1
+#define IMG_DWALK3 = 2
+#define IMG_DQUACK1 = 3
+#define IMG_DQUACK2 = 4
+#define IMG_DQUACK3 = 5
+#define IMG_DDIE1 = 6
+#define IMG_DDIE2 = 7
+#define IMG_DDIE3 = 8
+#define IMG_DDIE4 = 9
+#define IMG_DDIE5 = 10
 
 
 #define HIGHEST_LAYER = 7
@@ -141,99 +147,96 @@ offs_amount(6) = 2
 #define ANIM_PKKICK = 6
 #define ANIM_PDIE = 7
 
-#define ANIM_DWALK = 8
-#define ANIM_DQUACK = 9
-#define ANIM_DDIE = 10
+#define ANIM_DWALK = 0
+#define ANIM_DQUACK = 1
+#define ANIM_DDIE = 2
 
-#define ANIM_MAX = 11
+#define ANIM_MAX = 10
+
+#declare anim_order(FORM_MAX, ANIM_MAX, 10)
+anim_order(FORM_HUMAN, ANIM_PWALK, 0) = IMG_PWALK1
+anim_order(FORM_HUMAN, ANIM_PWALK, 1) = IMG_PWALK2
+anim_order(FORM_HUMAN, ANIM_PWALK, 2) = IMG_PWALK3
+anim_order(FORM_HUMAN, ANIM_PWALK, 3) = IMG_PWALK2
+
+anim_order(FORM_HUMAN, ANIM_PPUNCH, 0) = IMG_PPUNCH1
+anim_order(FORM_HUMAN, ANIM_PPUNCH, 1) = IMG_PPUNCH2
+anim_order(FORM_HUMAN, ANIM_PPUNCH, 2) = IMG_PPUNCH3
+anim_order(FORM_HUMAN, ANIM_PPUNCH, 3) = IMG_PPUNCH2
+anim_order(FORM_HUMAN, ANIM_PPUNCH, 4) = IMG_PPUNCH1
+
+anim_order(FORM_HUMAN, ANIM_PKICK, 0) = IMG_PKICK1
+anim_order(FORM_HUMAN, ANIM_PKICK, 1) = IMG_PKICK2
+anim_order(FORM_HUMAN, ANIM_PKICK, 2) = IMG_PKICK3
+anim_order(FORM_HUMAN, ANIM_PKICK, 3) = IMG_PKICK2
+anim_order(FORM_HUMAN, ANIM_PKICK, 4) = IMG_PKICK1
+
+anim_order(FORM_HUMAN, ANIM_PKNEEL_DN, 0) = IMG_PKNEEL1
+anim_order(FORM_HUMAN, ANIM_PKNEEL_DN, 1) = IMG_PKNEEL2
+anim_order(FORM_HUMAN, ANIM_PKNEEL_DN, 2) = IMG_PKNEEL3
+
+anim_order(FORM_HUMAN, ANIM_PKNEEL_UP, 0) = IMG_PKNEEL2
+anim_order(FORM_HUMAN, ANIM_PKNEEL_UP, 1) = IMG_PKNEEL1
+
+anim_order(FORM_HUMAN, ANIM_PKPUNCH, 0) = IMG_PKPUNCH1
+anim_order(FORM_HUMAN, ANIM_PKPUNCH, 1) = IMG_PKPUNCH2
+anim_order(FORM_HUMAN, ANIM_PKPUNCH, 2) = IMG_PKPUNCH3
+anim_order(FORM_HUMAN, ANIM_PKPUNCH, 3) = IMG_PKPUNCH2
+anim_order(FORM_HUMAN, ANIM_PKPUNCH, 4) = IMG_PKPUNCH1
+
+anim_order(FORM_HUMAN, ANIM_PKKICK, 0) = IMG_PKKICK1
+anim_order(FORM_HUMAN, ANIM_PKKICK, 1) = IMG_PKKICK2
+anim_order(FORM_HUMAN, ANIM_PKKICK, 2) = IMG_PKKICK3
+anim_order(FORM_HUMAN, ANIM_PKKICK, 3) = IMG_PKKICK2
+anim_order(FORM_HUMAN, ANIM_PKKICK, 4) = IMG_PKKICK1
+
+anim_order(FORM_HUMAN, ANIM_PDIE, 0) = IMG_PDIE1
+anim_order(FORM_HUMAN, ANIM_PDIE, 1) = IMG_PDIE2
+anim_order(FORM_HUMAN, ANIM_PDIE, 2) = IMG_PDIE3
+anim_order(FORM_HUMAN, ANIM_PDIE, 3) = IMG_PDIE4
+anim_order(FORM_HUMAN, ANIM_PDIE, 4) = IMG_PDIE5
+anim_order(FORM_HUMAN, ANIM_PDIE, 5) = IMG_PDIE5
+anim_order(FORM_HUMAN, ANIM_PDIE, 6) = IMG_PDIE5
+anim_order(FORM_HUMAN, ANIM_PDIE, 7) = IMG_PDIE5
+anim_order(FORM_HUMAN, ANIM_PDIE, 8) = IMG_PDIE5
+
+anim_order(FORM_DUCK, ANIM_DWALK, 0) = IMG_DWALK1
+anim_order(FORM_DUCK, ANIM_DWALK, 1) = IMG_DWALK2
+anim_order(FORM_DUCK, ANIM_DWALK, 2) = IMG_DWALK3
+anim_order(FORM_DUCK, ANIM_DWALK, 3) = IMG_DWALK2
+
+anim_order(FORM_DUCK, ANIM_DQUACK, 0) = IMG_DQUACK1
+anim_order(FORM_DUCK, ANIM_DQUACK, 1) = IMG_DQUACK2
+anim_order(FORM_DUCK, ANIM_DQUACK, 2) = IMG_DQUACK3
+anim_order(FORM_DUCK, ANIM_DQUACK, 3) = IMG_DQUACK2
+anim_order(FORM_DUCK, ANIM_DQUACK, 4) = IMG_DQUACK1
+
+anim_order(FORM_DUCK, ANIM_DDIE, 0) = IMG_DDIE1
+anim_order(FORM_DUCK, ANIM_DDIE, 1) = IMG_DDIE2
+anim_order(FORM_DUCK, ANIM_DDIE, 2) = IMG_DDIE3
+anim_order(FORM_DUCK, ANIM_DDIE, 3) = IMG_DDIE4
+anim_order(FORM_DUCK, ANIM_DDIE, 4) = IMG_DDIE5
+anim_order(FORM_DUCK, ANIM_DDIE, 5) = IMG_DDIE5
+anim_order(FORM_DUCK, ANIM_DDIE, 6) = IMG_DDIE5
+anim_order(FORM_DUCK, ANIM_DDIE, 7) = IMG_DDIE5
+anim_order(FORM_DUCK, ANIM_DDIE, 8) = IMG_DDIE5
 
 
-#declare anim_order(ANIM_MAX, 10)
-anim_order(ANIM_PWALK, 0) = IMG_PWALK1
-anim_order(ANIM_PWALK, 1) = IMG_PWALK2
-anim_order(ANIM_PWALK, 2) = IMG_PWALK3
-anim_order(ANIM_PWALK, 3) = IMG_PWALK2
+#declare max_frame(FORM_MAX, ANIM_MAX)
+max_frame(FORM_HUMAN, ANIM_PWALK) = 4
+max_frame(FORM_HUMAN, ANIM_PPUNCH) = 5
+max_frame(FORM_HUMAN, ANIM_PKICK) = 5
+max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) = 3
+max_frame(FORM_HUMAN, ANIM_PKNEEL_UP) = 2
+max_frame(FORM_HUMAN, ANIM_PKPUNCH) = 5
+max_frame(FORM_HUMAN, ANIM_PKKICK) = 5
+max_frame(FORM_HUMAN, ANIM_PDIE) = 9
 
-anim_order(ANIM_PPUNCH, 0) = IMG_PPUNCH1
-anim_order(ANIM_PPUNCH, 1) = IMG_PPUNCH2
-anim_order(ANIM_PPUNCH, 2) = IMG_PPUNCH3
-anim_order(ANIM_PPUNCH, 3) = IMG_PPUNCH2
-anim_order(ANIM_PPUNCH, 4) = IMG_PPUNCH1
-
-anim_order(ANIM_PKICK, 0) = IMG_PKICK1
-anim_order(ANIM_PKICK, 1) = IMG_PKICK2
-anim_order(ANIM_PKICK, 2) = IMG_PKICK3
-anim_order(ANIM_PKICK, 3) = IMG_PKICK2
-anim_order(ANIM_PKICK, 4) = IMG_PKICK1
-
-anim_order(ANIM_PKNEEL_DN, 0) = IMG_PKNEEL1
-anim_order(ANIM_PKNEEL_DN, 1) = IMG_PKNEEL2
-anim_order(ANIM_PKNEEL_DN, 2) = IMG_PKNEEL3
-
-anim_order(ANIM_PKNEEL_UP, 0) = IMG_PKNEEL2
-anim_order(ANIM_PKNEEL_UP, 1) = IMG_PKNEEL1
-
-anim_order(ANIM_PKPUNCH, 0) = IMG_PKPUNCH1
-anim_order(ANIM_PKPUNCH, 1) = IMG_PKPUNCH2
-anim_order(ANIM_PKPUNCH, 2) = IMG_PKPUNCH3
-anim_order(ANIM_PKPUNCH, 3) = IMG_PKPUNCH2
-anim_order(ANIM_PKPUNCH, 4) = IMG_PKPUNCH1
-
-anim_order(ANIM_PKKICK, 0) = IMG_PKKICK1
-anim_order(ANIM_PKKICK, 1) = IMG_PKKICK2
-anim_order(ANIM_PKKICK, 2) = IMG_PKKICK3
-anim_order(ANIM_PKKICK, 3) = IMG_PKKICK2
-anim_order(ANIM_PKKICK, 4) = IMG_PKKICK1
-
-anim_order(ANIM_PDIE, 0) = IMG_PDIE1
-anim_order(ANIM_PDIE, 1) = IMG_PDIE2
-anim_order(ANIM_PDIE, 2) = IMG_PDIE3
-anim_order(ANIM_PDIE, 3) = IMG_PDIE4
-anim_order(ANIM_PDIE, 4) = IMG_PDIE5
-anim_order(ANIM_PDIE, 5) = IMG_PDIE5
-anim_order(ANIM_PDIE, 6) = IMG_PDIE5
-anim_order(ANIM_PDIE, 7) = IMG_PDIE5
-anim_order(ANIM_PDIE, 8) = IMG_PDIE5
-
-anim_order(ANIM_DWALK, 0) = IMG_DWALK1
-anim_order(ANIM_DWALK, 1) = IMG_DWALK2
-anim_order(ANIM_DWALK, 2) = IMG_DWALK3
-anim_order(ANIM_DWALK, 3) = IMG_DWALK2
-
-anim_order(ANIM_DQUACK, 0) = IMG_DQUACK1
-anim_order(ANIM_DQUACK, 1) = IMG_DQUACK2
-anim_order(ANIM_DQUACK, 2) = IMG_DQUACK3
-anim_order(ANIM_DQUACK, 3) = IMG_DQUACK2
-anim_order(ANIM_DQUACK, 4) = IMG_DQUACK1
-
-anim_order(ANIM_DDIE, 0) = IMG_DDIE1
-anim_order(ANIM_DDIE, 1) = IMG_DDIE2
-anim_order(ANIM_DDIE, 2) = IMG_DDIE3
-anim_order(ANIM_DDIE, 3) = IMG_DDIE4
-anim_order(ANIM_DDIE, 4) = IMG_DDIE5
-anim_order(ANIM_DDIE, 5) = IMG_DDIE5
-anim_order(ANIM_DDIE, 6) = IMG_DDIE5
-anim_order(ANIM_DDIE, 7) = IMG_DDIE5
-anim_order(ANIM_DDIE, 8) = IMG_DDIE5
-
-
-#declare max_frame(ANIM_MAX)
-max_frame(ANIM_PWALK) = 4
-max_frame(ANIM_PPUNCH) = 5
-max_frame(ANIM_PKICK) = 5
-max_frame(ANIM_PKNEEL_DN) = 3
-max_frame(ANIM_PKNEEL_UP) = 2
-max_frame(ANIM_PKPUNCH) = 5
-max_frame(ANIM_PKKICK) = 5
-max_frame(ANIM_PDIE) = 9
-
-max_frame(ANIM_DWALK) = 4
-max_frame(ANIM_DQUACK) = 5
-max_frame(ANIM_DDIE) = 9
+max_frame(FORM_DUCK, ANIM_DWALK) = 4
+max_frame(FORM_DUCK, ANIM_DQUACK) = 5
+max_frame(FORM_DUCK, ANIM_DDIE) = 9
 
 .fanim
-#define FORM_HUMAN = 0
-#define FORM_DUCK = 1
 #declare player_form = 0 ' HUMAN
 
 #define FANIM_WALK = 0
@@ -247,7 +250,7 @@ max_frame(ANIM_DDIE) = 9
 
 #define FANIM_MAX = 8
 
-#declare form_anim(2, FANIM_MAX)
+#declare form_anim(FORM_MAX, FANIM_MAX)
 form_anim(FORM_HUMAN, FANIM_WALK) = ANIM_PWALK
 form_anim(FORM_HUMAN, FANIM_PUNCH) = ANIM_PPUNCH
 form_anim(FORM_HUMAN, FANIM_KICK) = ANIM_PKICK
@@ -266,6 +269,28 @@ form_anim(FORM_DUCK, FANIM_DIE) = ANIM_DDIE
 
 #declare baddie_frame = 0
 #declare baddie_anim = 0 ' ANIM_PWALK
+
+.offsets
+#define OFFSET_DATA_SIZE  = 0
+#define OFFSET_NUM_FRAMES = 2
+#define OFFSET_FRAME0     = 3
+
+#define FRM_OFFSET_X          = 0
+#define FRM_OFFSET_Y          = 1
+#define FRM_OFFSET_W          = 2
+#define FRM_OFFSET_H          = 3
+#define FRM_OFFSET_HITBOXES   = 4
+#define FRM_OFFSET_HB_HEAD    = 4
+#define FRM_OFFSET_HB_TORSO   = 8
+#define FRM_OFFSET_HB_FEET    = 12
+#define FRM_OFFSET_HB_ATTACK  = 16
+#define FRM_OFFSET_DATA       = 20
+
+#declare bx_offs(3)
+bx_offs(0) = FRM_OFFSET_HB_HEAD
+bx_offs(1) = FRM_OFFSET_HB_TORSO
+bx_offs(2) = FRM_OFFSET_HB_FEET
+bx_offs(3) = FRM_OFFSET_HB_ATTACK
 
 '----
 .main
@@ -316,21 +341,38 @@ gosub set_palette
 
   return
 
+#declare data_loc(FORM_MAX)
 
 '---------
 .load_data
 '---------
-  ' FORMAT:
-  ' ------
-  ' - The same as used by Xanadu grab tool?
-  ' - Save out a file for parallax layers
-  ' - Save out a file for sprites
+  ptr = $42000
 
-  bload "repaired.bin",p($42000)
+  form = FORM_LAYER
+  bload "level1-bg.dat",p(ptr)
   gosub init_petscii_frames
   gosub prepare_double_copy_layer
+  gosub _increment_ptr_to_next_free
+
+  form = FORM_PLAYER
+  bload "player.dat",p(ptr)
+  gosub init_petscii_frames
+  gosub _increment_ptr_to_next_free
+
+  form = FORM_DUCK
+  bload "duck.dat",p(ptr)
+  gosub init_petscii_frames
+  gosub _increment_ptr_to_next_free
 
   bload "pal.bin",p($40100),r
+  return
+
+
+'---------------------------
+._increment_ptr_to_next_free
+'---------------------------
+  sz = wpeek(ptr + OFFSET_DATA_SIZE)
+  ptr = ptr + sz
   return
 
 '-----------
@@ -402,17 +444,15 @@ gosub set_palette
 '-------------------
 .init_petscii_frames
 '-------------------
-  max_frames = peek(data_addr)
-  data_addr = data_addr + 1
+  max_frames(form) = peek(ptr + OFFSET_NUM_FRAMES)
+  ptr = ptr + OFFSET_FRAME0
 
-  do while frm_idx < max_frames
-    frame_addr(frm_idx) = data_addr
-    data_addr = data_addr + 2
-    frmw = peek(data_addr)
-    data_addr = data_addr + 1
-    frmh = peek(data_addr)
-    data_addr = data_addr + 1
-    data_addr = data_addr + frmw * frmh
+  do while frm_idx < max_frames(form)
+    frame_addr(form, frm_idx) = ptr
+    frmw = peek(ptr + FRM_OFFSET_W)
+    frmh = peek(ptr + FRM_OFFSET_H)
+    
+    ptr = ptr + FRM_OFFSET_DATA + frmw * frmh
 
     ':print chr$(147);"frm_idx=";frm_idx
 
@@ -426,16 +466,12 @@ gosub set_palette
 '-------------------------
   dblup_addr = $52000
 
-  for frameidx = 0 to HIGHEST_LAYER
-    data_addr = frame_addr(frameidx)
-    frmx = peek(data_addr)
-    data_addr = data_addr + 1
-    frmy = peek(data_addr)
-    data_addr = data_addr + 1
-    frmw = peek(data_addr)
-    data_addr = data_addr + 1
-    frmh = peek(data_addr)
-    data_addr = data_addr + 1
+  for frameidx = 0 to max_frames(FORM_LAYER)-1
+    ptr = frame_addr(FORM_LAYER, frameidx)
+    frmx = peek(ptr + FRM_OFFSET_X)
+    frmy = peek(ptr + FRM_OFFSET_Y)
+    frmw = peek(ptr + FRM_OFFSET_W)
+    frmh = peek(ptr + FRM_OFFSET_H)
 
     frmx1=frmx+frmw-1
     frmy1=frmy+frmh-1
@@ -446,7 +482,7 @@ gosub set_palette
     for y = frmy to frmy1
       for k = 0 to 1
           ' copy it to some place in $5.2000
-          edma 0, frmw, data_addr, dblup_addr
+          edma 0, frmw, (ptr + FRM_OFFSET_DATA), dblup_addr
           dblup_addr = dblup_addr + frmw
       next k
       data_addr = data_addr + frmw
