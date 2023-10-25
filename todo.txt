@@ -24,14 +24,16 @@ stretch goals
 
 Housekeeping todo:
 -----------------
-- split layers and player frames apart
+PROGRESS- split layers and player frames apart
   (so that in future, people can add new layers, or player frames more comfortably)
-- split player head from body
+- make new players/enemy characters
   (so that player can have one of multiple heads. E.g. deft's new ones)
-  - deft's art is here:
+- deft's art is here:
     - https://discord.com/channels/719326990221574164/805252939593416705/1164133584941097060
 - update 'grabber' tool to:
-  - edit existing frames
-  - define hit boxes
-  - load/save hitboxes
+  - add/edit existing frames
+  DONE- define hit boxes
+  DONE- load/save hitboxes
 - update code to load up newly structured layers + player-frames + hit-boxes
+- Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
+

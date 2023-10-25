@@ -35,8 +35,8 @@
 '   DWORD: torso box (x1,y1,x2,y2)
 '   DWORD: feet box (x1,y1,x2,y2)
 '   DWORD: attack box (x1,y1,x2,y2)
-'   BYTE[x*y]: char data
-'   BYTE[x*y]: color data
+'   BYTE[w*h]: char data
+'   BYTE[w*h]: color data
 '
 ' FRAME #1
 ' --------
@@ -62,7 +62,7 @@
 '   DWORD: torso box (x1,y1,x2,y2)
 '   DWORD: feet box (x1,y1,x2,y2)
 '   DWORD: attack box (x1,y1,x2,y2)
-'   BYTE[x*y]: color data
+'   BYTE[w*h]: color data
 '
 ' FRAME #1
 ' --------
@@ -265,7 +265,7 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
     gosub draw_hitboxes
     gosub HB_get_user_input
 
-    if a$="x" or a$=KEY_ESC or a$="f7" then begin
+    if a$="x" or a$=KEY_ESC or a$=KEY_F7 then begin
       print chr$(147);
       gosub draw_curr_frame
       exit
@@ -285,7 +285,11 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
 '---------
 .draw_char
 '---------
-  if peek($40800 + x + y * 80) <> CHAR_SPACE then k = k + 128
+  if peek($40800 + x + y * 80) <> CHAR_SPACE then begin
+    k = k + 128
+  bend:else begin
+    poke $ff80000 + x + y * 80, 1
+  bend
   poke $40800 + x + y * 80, k
   return
 
@@ -449,8 +453,8 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   input "load name: ";fname$
   if fname$ = "" then return
 
-  bload (fname$),p($42000)
-  gosub one_off_repair
+  bload (fname$),p($50000)
+  ' gosub one_off_repair
   return
 
 '--------------
@@ -503,9 +507,23 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   input "save name: ";fname$
   if fname$ = "" then return
 
-  gosub locate_next_free_byte
+  ptr = $50000 + wpeek($50000 + OFFSET_DATA_SIZE)
   delete (fname$)
-  bsave (fname$),p($42000) to p(ptr)
+  bsave (fname$),p($50000) to p(ptr)
+  return
+
+
+'-------------------------------------
+.calculate_optimised_data_size_into_sz
+'-------------------------------------
+  sz = wpeek($50000 + OFFSET_DATA_SIZE)
+  ptr = $50000 + OFFSET_FRAME0
+  for k = 0 to frame_count - 1
+    frmw = peek(ptr + FRM_OFFSET_W)
+    frmh = peek(ptr + FRM_OFFSET_H)
+    sz = sz - frmw * frmh
+    ptr = ptr + FRM_OFFSET_DATA + frmw * frmh * 2
+  next k
   return
 
 
@@ -517,40 +535,38 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
 
   delete (fname$)
 
-  ptr = $42001
   dopen #2,(fname$ + ",p"),w,u8
   print #2, chr$(1);
   print #2, chr$(2);  ' dummy address
+
+  gosub calculate_optimised_data_size_into_sz  
+  print #2, chr$(sz and 255)
+  print #2, chr$(sz >> 8)
+
   print #2, chr$(frame_count);
 
+  ptr = $50000 + OFFSET_FRAME0
+
   for frmidx = 0 to frame_count - 1
-    x = peek(ptr)
-    ptr = ptr + 1
-    y = peek(ptr)
-    ptr = ptr + 1
-    frmw = peek(ptr)
-    ptr = ptr + 1
-    frmh = peek(ptr)
-    ptr = ptr + 1
+    x = peek(ptr + FRM_OFFSET_X)
+    y = peek(ptr + FRM_OFFSET_Y)
+    frmw = peek(ptr + FRM_OFFSET_W)
+    frmh = peek(ptr + FRM_OFFSET_H)
 
     print #2, chr$(x);chr$(y);chr$(frmw);chr$(frmh);
 
-    endx = x + frmw - 1
-    endy = y + frmh - 1
-
-    src_clr_ptr = ptr + frmw * frmh
+    src_char_ptr = ptr + FRM_OFFSET_DATA
+    src_clr_ptr = ptr + FRM_OFFSET_DATA + frmw * frmh
     
-    for yidx = 0 to endy - y
-      for xidx = 0 to endx - x
-        cval = peek(src_clr_ptr + xidx + yidx * frmw)
-        if peek(ptr + xidx + yidx * frmw) = 32 then begin
-          cval = $ff
-        bend
-        print #2, chr$(cval);
-      next xidx
-    next yidx
+    for k = 0 to frmw * frmh - 1
+      cval = peek(src_clr_ptr + k)
+      if peek(src_char_ptr + k) = 32 then begin
+        cval = $ff
+      bend
+      print #2, chr$(cval);
+    next k
 
-    ptr = ptr + frmw * frmh * 2
+    ptr = ptr + FRM_OFFSET_DATA + frmw * frmh * 2
 
   next frmidx
 
