@@ -11,7 +11,7 @@ pushdat: layers.bin
 	c1541 -attach "C:\Users\gurcei\AppData\Roaming\xemu-lgb\mega65\hdos\11.D81" -delete repaired.bin -write repaired.bin
 
 getdat:
-	c1541 -attach "C:\Users\gurcei\AppData\Roaming\xemu-lgb\mega65\hdos\11.D81" -read layers.bin -read layers2.bin -read foot foot.prg -read repaired.bin -read "level1-bg.bin" -read "level1-bg.dat" -read "player.bin" -read "player.dat" -read "duck.bin" -read "duck.dat"
+	c1541 -attach "C:\Users\gurcei\AppData\Roaming\xemu-lgb\mega65\hdos\11.D81" -read layers.bin -read layers2.bin -read layers2.opt -read foot foot.prg -read repaired.bin -read "level1-bg.bin" -read "level1-bg.dat" -read "player.bin" -read "player.dat" -read "duck.bin" -read "duck.dat"
 
 getbas:
 	c1541 -attach "C:\Users\gurcei\AppData\Roaming\xemu-lgb\mega65\hdos\11.D81" -read grab grab.prg
