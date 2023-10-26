@@ -485,7 +485,7 @@ gosub set_palette
           edma 0, frmw, (ptr + FRM_OFFSET_DATA), dblup_addr
           dblup_addr = dblup_addr + frmw
       next k
-      data_addr = data_addr + frmw
+      ptr = ptr + frmw
     next y
 
   next frameidx
@@ -502,7 +502,7 @@ gosub set_palette
 
   poke $4000b, $05  ' assure source bank 5 (for doubled-up layers)
 
-  for lidx = 0 to HIGHEST_LAYER
+  for lidx = 0 to max_frames(FORM_LAYER)
      ' if layer_visible[lidx] = 1 then begin
        frameidx = draw_order(lidx)
        gosub draw_petscii_layer 
@@ -631,6 +631,7 @@ gosub set_palette
   frameidx = anim_order(player_anim, player_frame)
   fx=px : fy=py
   mirror = 0
+  form = player_frame
   gosub draw_petscii_frame
 
   return
@@ -642,6 +643,7 @@ gosub set_palette
   frameidx = anim_order(baddie_anim, baddie_frame)
   fx=bx : fy=by
   mirror = 1
+  form = baddie_frame
   gosub draw_petscii_frame
   return
 
