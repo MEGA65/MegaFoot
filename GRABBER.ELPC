@@ -595,6 +595,9 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   poke ptr + FRM_OFFSET_W, x - startx + 1
   poke ptr + FRM_OFFSET_H, y - starty + 1
 
+  ln = FRM_OFFSET_DATA - FRM_OFFSET_HITBOXES
+  edma OP_FILL, ln, 0, ptr + FRM_OFFSET_HITBOXES
+
   ptr = ptr + FRM_OFFSET_DATA
   for yidx = starty to y
     for xidx = startx to x
@@ -610,6 +613,7 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
     next xidx
   next yidx
 
+  wpoke $50000 + OFFSET_DATA_SIZE, ptr - $50000
   poke $50000 + OFFSET_NUM_FRAMES, frame_count + 1
 
   cursor 0,49
@@ -871,7 +875,10 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
     print "{x93}";clr_line_right$;
     print "magic signature applied. reset frame count to zero? (y/n)";
     get key a$
-    if a$ = "y" then poke $50000,0
+    if a$ = "y" then begin
+      wpoke $50000 + OFFSET_DATA_SIZE, 0
+      poke $50000 + OFFSET_NUM_FRAMES, 0
+    bend
     print "{x93}";clr_line_right$;
   bend
   return
