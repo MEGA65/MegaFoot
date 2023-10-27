@@ -35,7 +35,7 @@
 
 #declare data_addr = $42000
 #declare max_frames(FORM_MAX)
-#declare frame_addr(FORM_MAX, 20)
+#declare frame_addr(FORM_MAX, 25)
 #declare frame_dblup_addr(64)
 
 #declare jdir_raw, jfire, jdir
@@ -46,6 +46,7 @@
 #declare a$, lidx, k, x, y
 #declare src_addr, dest_addr, length, transp
 #declare dest_mb_sel, dest_bank
+#declare form, sz
 
 #declare dblup_addr = $52000
 
@@ -237,7 +238,8 @@ max_frame(FORM_DUCK, ANIM_DQUACK) = 5
 max_frame(FORM_DUCK, ANIM_DDIE) = 9
 
 .fanim
-#declare player_form = 0 ' HUMAN
+#declare player_form = 1 ' HUMAN
+#declare baddie_form = 1
 
 #define FANIM_WALK = 0
 #define FANIM_PUNCH = 1
@@ -354,7 +356,7 @@ gosub set_palette
   gosub prepare_double_copy_layer
   gosub _increment_ptr_to_next_free
 
-  form = FORM_PLAYER
+  form = FORM_HUMAN
   bload "player.dat",p(ptr)
   gosub init_petscii_frames
   gosub _increment_ptr_to_next_free
@@ -428,6 +430,7 @@ gosub set_palette
 
   kneel_flag = 0
   player_form = FORM_HUMAN
+  baddie_form = FORM_HUMAN
 
   player_frame = 0
   player_anim = form_anim(player_form, FANIM_WALK)
@@ -447,6 +450,7 @@ gosub set_palette
   max_frames(form) = peek(ptr + OFFSET_NUM_FRAMES)
   ptr = ptr + OFFSET_FRAME0
 
+  frm_idx = 0
   do while frm_idx < max_frames(form)
     frame_addr(form, frm_idx) = ptr
     frmw = peek(ptr + FRM_OFFSET_W)
@@ -502,7 +506,7 @@ gosub set_palette
 
   poke $4000b, $05  ' assure source bank 5 (for doubled-up layers)
 
-  for lidx = 0 to max_frames(FORM_LAYER)
+  for lidx = 0 to max_frames(FORM_LAYER)-1
      ' if layer_visible[lidx] = 1 then begin
        frameidx = draw_order(lidx)
        gosub draw_petscii_layer 
@@ -589,7 +593,7 @@ gosub set_palette
   ' handle no input cases
   ' ---------------------
   if jdir_raw=0 and player_anim = ANIM_PKNEEL_DN then begin
-    if player_frame >= max_frame(ANIM_PKNEEL_DN)-1 then begin
+    if player_frame >= max_frame(FORM_HUMAN, ANIM_PKNEEL_DN)-1 then begin
     kneel_flag = 0
     player_anim = ANIM_PKNEEL_UP
     player_frame = 0
@@ -628,10 +632,10 @@ gosub set_palette
 '-----------
 .draw_player
 '-----------
-  frameidx = anim_order(player_anim, player_frame)
+  frameidx = anim_order(player_form, player_anim, player_frame)
   fx=px : fy=py
   mirror = 0
-  form = player_frame
+  form = player_form
   gosub draw_petscii_frame
 
   return
@@ -640,10 +644,10 @@ gosub set_palette
 '-----------
 .draw_baddie
 '-----------
-  frameidx = anim_order(baddie_anim, baddie_frame)
+  frameidx = anim_order(baddie_form, baddie_anim, baddie_frame)
   fx=bx : fy=by
   mirror = 1
-  form = baddie_frame
+  form = baddie_form
   gosub draw_petscii_frame
   return
 
@@ -659,14 +663,14 @@ gosub set_palette
   bend
 
   if player_anim = ANIM_PKNEEL_DN and jdir=J_DOWN then begin
-    if player_frame >= max_frame(ANIM_PKNEEL_DN) then begin
+    if player_frame >= max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) then begin
       player_frame = max_frame(ANIM_PKNEEL_DN) - 1
       kneel_flag = 1
     bend
     return
   bend
 
-  if player_frame >= max_frame(player_anim) then begin
+  if player_frame >= max_frame(player_form, player_anim) then begin
     if player_anim = ANIM_PDIE then begin
       player_anim = ANIM_PKNEEL_UP
       player_frame = 0
@@ -674,7 +678,7 @@ gosub set_palette
     bend
     if kneel_flag = 1 and player_anim <> ANIM_PKNEEL_DN then begin
       player_anim = ANIM_PKNEEL_DN
-      player_frame = max_frame(ANIM_PKNEEL_DN) - 1
+      player_frame = max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) - 1
     bend:else begin
       player_anim = form_anim(player_form, FANIM_WALK)
       player_frame = 0
@@ -687,7 +691,7 @@ gosub set_palette
 .consider_next_baddie_frame
 '--------------------------
   if baddie_anim <> ANIM_PWALK then begin
-    baddie_frame = mod(baddie_frame + 1, max_frame(baddie_anim))
+    baddie_frame = mod(baddie_frame + 1, max_frame(baddie_form, baddie_anim))
   bend
 
   gosub if_player_far_walk_closer
@@ -732,7 +736,7 @@ gosub set_palette
 '------------------
   baddie_anim = ANIM_PWALK
   baddie_frame = baddie_frame + 1
-  if baddie_frame >= max_frame(baddie_anim) then baddie_frame = 0
+  if baddie_frame >= max_frame(baddie_form, baddie_anim) then baddie_frame = 0
 
   if bx > px then begin
     bx = bx - 1
@@ -746,7 +750,7 @@ gosub set_palette
 '------------------
   poke $4000b, $04  ' assure source bank 4 (for original frame data)
   if mirror = 1 then setbit $40006, 5:else clrbit $40006, 5
-  data_addr = frame_addr(frameidx)
+  data_addr = frame_addr(form, frameidx)
   frmx = peek(data_addr)
   data_addr = data_addr + 1
   frmy = peek(data_addr)
@@ -787,7 +791,7 @@ gosub set_palette
 .draw_petscii_layer
 '------------------
   clrbit $40006, 5
-  data_addr = frame_addr(frameidx)
+  data_addr = frame_addr(FORM_LAYER, frameidx)
   frmx = peek(data_addr)
   data_addr = data_addr + 1
   frmy = peek(data_addr)
