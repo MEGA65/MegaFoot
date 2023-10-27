@@ -558,6 +558,8 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
 
     print #2, chr$(x);chr$(y);chr$(frmw);chr$(frmh);
 
+    for k=0 to 15:print #2, chr$(0);:next k
+
     src_char_ptr = ptr + FRM_OFFSET_DATA
     src_clr_ptr = ptr + FRM_OFFSET_DATA + frmw * frmh
     

@@ -456,6 +456,7 @@ gosub set_palette
     frmw = peek(ptr + FRM_OFFSET_W)
     frmh = peek(ptr + FRM_OFFSET_H)
     
+    'print "ptr=";hex$(ptr);", idx=";frm_idx;", w=";frmw;", h=";frmh
     ptr = ptr + FRM_OFFSET_DATA + frmw * frmh
 
     ':print chr$(147);"frm_idx=";frm_idx
@@ -664,7 +665,7 @@ gosub set_palette
 
   if player_anim = ANIM_PKNEEL_DN and jdir=J_DOWN then begin
     if player_frame >= max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) then begin
-      player_frame = max_frame(ANIM_PKNEEL_DN) - 1
+      player_frame = max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) - 1
       kneel_flag = 1
     bend
     return
@@ -751,14 +752,10 @@ gosub set_palette
   poke $4000b, $04  ' assure source bank 4 (for original frame data)
   if mirror = 1 then setbit $40006, 5:else clrbit $40006, 5
   data_addr = frame_addr(form, frameidx)
-  frmx = peek(data_addr)
-  data_addr = data_addr + 1
-  frmy = peek(data_addr)
-  data_addr = data_addr + 1
-  frmw = peek(data_addr)
-  data_addr = data_addr + 1
-  frmh = peek(data_addr)
-  data_addr = data_addr + 1
+  frmx = peek(data_addr + FRM_OFFSET_X)
+  frmy = peek(data_addr + FRM_OFFSET_Y)
+  frmw = peek(data_addr + FRM_OFFSET_W)
+  frmh = peek(data_addr + FRM_OFFSET_H)
 
   frmx = fx ' override position
   frmy = fy
@@ -769,7 +766,7 @@ gosub set_palette
   clraddr = $51000 + frmx + frmy * 80
   if mirror = 1 then clraddr = clraddr + frmw - 1
 
-  cdata_addr = data_addr
+  cdata_addr = data_addr + FRM_OFFSET_DATA
 
   for yy=frmy to frmy1
 
@@ -792,21 +789,16 @@ gosub set_palette
 '------------------
   clrbit $40006, 5
   data_addr = frame_addr(FORM_LAYER, frameidx)
-  frmx = peek(data_addr)
-  data_addr = data_addr + 1
-  frmy = peek(data_addr)
-  data_addr = data_addr + 1
-  frmw = peek(data_addr)
-  data_addr = data_addr + 1
-  frmh = peek(data_addr)
-  data_addr = data_addr + 1
+  frmx = peek(data_addr + FRM_OFFSET_X)
+  frmy = peek(data_addr + FRM_OFFSET_Y)
+  frmw = peek(data_addr + FRM_OFFSET_W)
+  frmh = peek(data_addr + FRM_OFFSET_H)
 
   frmx1=frmx+frmw-1
   frmy1=frmy+frmh-1
 
-  scraddr = $50000 + frmx + frmy * 80  ' todo - remove
   clraddr = $51000 + frmx + frmy * 80
-  cdata_addr = data_addr + frmw * frmh
+  cdata_addr = data_addr + FRM_OFFSET_DATA + frmw * frmh
 
   xoffs(frameidx) = mod(xoffs(frameidx) + 80, 80)
   xoffs = int(xoffs(frameidx))
@@ -837,7 +829,6 @@ gosub set_palette
   gosub draw_sprites
   gosub page_flip
   gosub game_logic
-
   gosub draw_energy_bars
 
   goto gameplay
