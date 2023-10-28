@@ -26,6 +26,9 @@
 ' 5.1000 color ram buffer
 ' 5.2000 doubled-up layer buffer
 
+' uncomment this line to add debug output
+#define DEBUG = 1
+
 .petscii vars
 '------------
 #define FORM_LAYER = 0
@@ -61,6 +64,16 @@
 #declare lag_penergy = 0
 #declare baddie_energy = 18
 #declare lag_benergy = 0
+
+#declare x1,y1,x2,y2, draw_color, idx, tmpx1
+
+#define CHAR_BOX_TL = 112
+#define CHAR_BOX_TR = 110
+#define CHAR_BOX_BL = 109
+#define CHAR_BOX_BR = 125
+#define CHAR_HORZ   = 64
+#define CHAR_VERT   = 93
+#define CHAR_SPACE  = 32
 
 .imgs
 '----
@@ -349,7 +362,7 @@ gosub set_palette
 .load_data
 '---------
   ptr = $42000
-
+  
   form = FORM_LAYER
   bload "level1-bg.dat",p(ptr)
   gosub init_petscii_frames
@@ -781,6 +794,11 @@ gosub set_palette
     cdata_addr = cdata_addr + frmw
     clraddr = clraddr + 80  
   next yy
+
+#ifdef DEBUG
+  gosub draw_boxes
+#endif
+
   return
 
 
@@ -914,7 +932,10 @@ gosub set_palette
 '---------
 .page_flip
 '---------
-  ' edma 0, $fa0, $50000, $40800
+#ifdef DEBUG
+  edma 0, $f00, $50000, $40800
+  edma 3, $f00, 160, $50000
+#endif
   edma 0, $f00, $51000, $ff80000
 
   ' fill the top part
@@ -935,5 +956,81 @@ gosub set_palette
   for k = 0 to HIGHEST_LAYER
     xoffs(k) = xoffs(k) - offs_amount(k)
   next k
+  return
+
+
+'----------
+.draw_boxes
+'----------
+  ptr = data_addr + FRM_OFFSET_HITBOXES
+
+  for idx = 0 to 3
+    x1 = peek(ptr + 0)
+    y1 = peek(ptr + 1)
+    x2 = peek(ptr + 2)
+    y2 = peek(ptr + 3)
+
+    if not (x1=0 and y1=0 and x2=0 and y2=0) then begin
+      if mirror = 0 then begin
+        x1 = frmx + x1
+        y1 = frmy + y1
+        x2 = frmx + x2
+        y2 = frmy + y2
+      bend:else begin
+        tmpx1 = x1
+        x1 = frmx + frmw - x2 - 1
+        y1 = frmy + y1
+        x2 = frmx + frmw - tmpx1 - 1
+        y2 = frmy + y2
+      bend
+
+      draw_color = 7
+      if idx = 3 then draw_color = 2
+      gosub draw_box
+
+    bend
+
+    ptr = ptr + 4
+  next idx
+  return
+
+
+'--------
+.draw_box
+'--------
+  ' draw corners
+  ' ------------
+  x = x1 : y = y1 : k = CHAR_BOX_TL : gosub draw_char
+  x = x2 : y = y1 : k = CHAR_BOX_TR : gosub draw_char
+  x = x1 : y = y2 : k = CHAR_BOX_BL : gosub draw_char
+  x = x2 : y = y2 : k = CHAR_BOX_BR : gosub draw_char
+
+  ' draw horizontals
+  ' ----------------
+  for x = x1+1 to x2-1
+    y = y1 : k = CHAR_HORZ : gosub draw_char
+    y = y2 : k = CHAR_HORZ : gosub draw_char
+  next x
+
+  ' draw verticals
+  ' --------------
+  for y = y1+1 to y2-1
+    x = x1 : k = CHAR_VERT : gosub draw_char
+    x = x2 : k = CHAR_VERT : gosub draw_char
+  next y
+
+  return
+
+
+'---------
+.draw_char
+'---------
+  if peek($50000 + x + y * 80) <> CHAR_SPACE then begin
+    k = k + 128
+  bend:else begin
+    poke $51000 + x + y * 80, 1
+  bend
+  if draw_color = 2 then poke $51000 + x + y * 80, draw_color
+  poke $50000 + x + y * 80, k
   return
 ÿ
