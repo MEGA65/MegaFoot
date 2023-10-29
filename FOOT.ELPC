@@ -61,7 +61,7 @@
 
 #declare kneel_flag = 0
 
-#declare mirror, player_mirror, baddie_mirror, opponent_mirror
+#declare mirror, player_mirror, baddie_mirror, opponent_mirror, tmp_mirror
 
 #declare px, py ' player x,y
 #declare bx, by ' baddie x,y
@@ -1051,19 +1051,19 @@ gosub set_palette
 '---------------------
 .check_if_hit_opponent
 '---------------------
+  tmp_mirror = mirror
   if character = PLAYER then begin
     frameidx = anim_order(baddie_form, baddie_anim, baddie_frame)
     opponent_data_addr = frame_addr(baddie_form, frameidx)
     opponent_mirror = baddie_mirror
+    fx=bx : fy=by
   bend
   if character = BADDIE then begin
     frameidx = anim_order(player_form, player_anim, player_frame)
-    opponent_data_addr = frame_addr(baddie_form, frameidx)
+    opponent_data_addr = frame_addr(player_form, frameidx)
     opponent_mirror = player_mirror
+    fx=px : fy=py
   bend
-
-  ' iterate through head/torso/feet hitboxes of opponent
-  ptr = opponent_data_addr + FRM_OFFSET_HITBOXES
 
   x1 = peek(data_addr + FRM_OFFSET_HB_ATTACK + 0)
   y1 = peek(data_addr + FRM_OFFSET_HB_ATTACK + 1)
@@ -1075,6 +1075,18 @@ gosub set_palette
   p_y1 = y1
   p_x2 = x2
   p_y2 = y2
+
+  frmx = peek(opponent_data_addr + FRM_OFFSET_X)
+  frmy = peek(opponent_data_addr + FRM_OFFSET_Y)
+  frmx = frmx + fx
+  frmy = frmy + fy
+
+  frmw = peek(opponent_data_addr + FRM_OFFSET_W)
+  frmh = peek(opponent_data_addr + FRM_OFFSET_H)
+
+
+  ' iterate through head/torso/feet hitboxes of opponent
+  ptr = opponent_data_addr + FRM_OFFSET_HITBOXES
 
   for idx = 0 to 2
     x1 = peek(ptr + 0)
@@ -1102,6 +1114,9 @@ gosub set_palette
         if baddie_energy > 0 then baddie_energy = baddie_energy - 1
       bend
     bend
+  next idx
+
+  mirror = tmp_mirror
   return
 
 
@@ -1126,10 +1141,14 @@ gosub set_palette
 '-------------------
 .check_box_collision
 '-------------------
-  if not ((o_x1 > x2) or {x5F}
-          (o_x2 < x1) or {x5F}
-          (o_y1 > y2) or {x5F}
-          (o_y2 < y1)) then {x5F}
+  'print "{x13}";chr$(27);"q";p_x1;p_y1;p_x2;p_y2
+  'print chr$(27);"q";o_x1;o_y1;o_x2;o_y2;
+  'get key a$
+
+  if not ((o_x1 > p_x2) or {x5F}
+          (o_x2 < p_x1) or {x5F}
+          (o_y1 > p_y2) or {x5F}
+          (o_y2 < p_y1)) then {x5F}
   begin
     ret% = 1
   bend:else begin
