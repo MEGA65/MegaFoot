@@ -1114,6 +1114,7 @@ gosub set_palette
         if baddie_energy > 0 then baddie_energy = baddie_energy - 1
       bend
     bend
+    ptr = ptr + 4
   next idx
 
   mirror = tmp_mirror
