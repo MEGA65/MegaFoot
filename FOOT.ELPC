@@ -27,7 +27,7 @@
 ' 5.2000 doubled-up layer buffer
 
 ' uncomment this line to add debug output
-#define DEBUG = 1
+#declare DEBUG = 1
 
 .petscii vars
 '------------
@@ -51,11 +51,17 @@
 #declare dest_mb_sel, dest_bank
 #declare form, sz
 
+#define PLAYER = 0
+#define BADDIE = 1
+#declare character
+
+#declare opponent_data_addr
+
 #declare dblup_addr = $52000
 
 #declare kneel_flag = 0
 
-#declare mirror
+#declare mirror, player_mirror, baddie_mirror, opponent_mirror
 
 #declare px, py ' player x,y
 #declare bx, by ' baddie x,y
@@ -66,6 +72,9 @@
 #declare lag_benergy = 0
 
 #declare x1,y1,x2,y2, draw_color, idx, tmpx1
+#declare p_x1, p_y1, p_x2, p_y2
+#declare o_x1, o_y1, o_x2, o_y2
+#declare ret%
 
 #define CHAR_BOX_TL = 112
 #define CHAR_BOX_TR = 110
@@ -455,6 +464,9 @@ gosub set_palette
   baddie_energy = 18
   lag_benergy = 0
 
+  player_mirror = 0
+  baddie_mirror = 1
+
   return
 
 '-------------------
@@ -582,6 +594,13 @@ gosub set_palette
   if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
   if a$="." and palidx<11 then palidx=palidx+1:gosub set_palette
 
+  if a$="1" then begin
+    DEBUG=mod(DEBUG+1,2)
+    edma 3, $f00, 160, $50000
+    edma 3, $f00, 160, $40800
+
+  bend
+
   ' d = toggle between human and duck
   if a$="d" then begin
     if player_form = FORM_HUMAN then begin
@@ -642,13 +661,13 @@ gosub set_palette
 
   return
 
-
 '-----------
 .draw_player
 '-----------
+  character = PLAYER
   frameidx = anim_order(player_form, player_anim, player_frame)
   fx=px : fy=py
-  mirror = 0
+  mirror = player_mirror
   form = player_form
   gosub draw_petscii_frame
 
@@ -658,9 +677,10 @@ gosub set_palette
 '-----------
 .draw_baddie
 '-----------
+  character = BADDIE
   frameidx = anim_order(baddie_form, baddie_anim, baddie_frame)
   fx=bx : fy=by
-  mirror = 1
+  mirror = baddie_mirror
   form = baddie_form
   gosub draw_petscii_frame
   return
@@ -795,9 +815,7 @@ gosub set_palette
     clraddr = clraddr + 80  
   next yy
 
-#ifdef DEBUG
-  gosub draw_boxes
-#endif
+  if DEBUG then gosub draw_boxes
 
   return
 
@@ -932,10 +950,10 @@ gosub set_palette
 '---------
 .page_flip
 '---------
-#ifdef DEBUG
-  edma 0, $f00, $50000, $40800
-  edma 3, $f00, 160, $50000
-#endif
+  if DEBUG then begin
+    edma 0, $f00, $50000, $40800
+    edma 3, $f00, 160, $50000
+  bend
   edma 0, $f00, $51000, $ff80000
 
   ' fill the top part
@@ -971,22 +989,17 @@ gosub set_palette
     y2 = peek(ptr + 3)
 
     if not (x1=0 and y1=0 and x2=0 and y2=0) then begin
-      if mirror = 0 then begin
-        x1 = frmx + x1
-        y1 = frmy + y1
-        x2 = frmx + x2
-        y2 = frmy + y2
-      bend:else begin
-        tmpx1 = x1
-        x1 = frmx + frmw - x2 - 1
-        y1 = frmy + y1
-        x2 = frmx + frmw - tmpx1 - 1
-        y2 = frmy + y2
-      bend
+      gosub adjust_coords
 
       draw_color = 7
-      if idx = 3 then draw_color = 2
-      gosub draw_box
+
+      if idx = 3 then begin
+        draw_color = 2
+        gosub draw_box
+        gosub check_if_hit_opponent
+      bend:else begin
+        gosub draw_box
+      bend
 
     bend
 
@@ -1032,5 +1045,95 @@ gosub set_palette
   bend
   if draw_color = 2 then poke $51000 + x + y * 80, draw_color
   poke $50000 + x + y * 80, k
+  return
+
+
+'---------------------
+.check_if_hit_opponent
+'---------------------
+  if character = PLAYER then begin
+    frameidx = anim_order(baddie_form, baddie_anim, baddie_frame)
+    opponent_data_addr = frame_addr(baddie_form, frameidx)
+    opponent_mirror = baddie_mirror
+  bend
+  if character = BADDIE then begin
+    frameidx = anim_order(player_form, player_anim, player_frame)
+    opponent_data_addr = frame_addr(baddie_form, frameidx)
+    opponent_mirror = player_mirror
+  bend
+
+  ' iterate through head/torso/feet hitboxes of opponent
+  ptr = opponent_data_addr + FRM_OFFSET_HITBOXES
+
+  x1 = peek(data_addr + FRM_OFFSET_HB_ATTACK + 0)
+  y1 = peek(data_addr + FRM_OFFSET_HB_ATTACK + 1)
+  x2 = peek(data_addr + FRM_OFFSET_HB_ATTACK + 2)
+  y2 = peek(data_addr + FRM_OFFSET_HB_ATTACK + 3)
+
+  gosub adjust_coords
+  p_x1 = x1
+  p_y1 = y1
+  p_x2 = x2
+  p_y2 = y2
+
+  for idx = 0 to 2
+    x1 = peek(ptr + 0)
+    y1 = peek(ptr + 1)
+    x2 = peek(ptr + 2)
+    y2 = peek(ptr + 3)
+
+    gosub adjust_coords
+    o_x1 = x1
+    o_y1 = y1
+    o_x2 = x2
+    o_y2 = y2
+
+    gosub check_box_collision
+
+    if ret% = 1 then begin
+      if character = BADDIE then begin
+        player_anim = form_anim(player_form, FANIM_DIE)
+        player_frame = 0
+        if player_energy > 0 then player_energy = player_energy - 1
+      bend
+      if character = PLAYER then begin
+        baddie_anim = form_anim(baddie_form, FANIM_DIE)
+        baddie_frame = 0
+        if baddie_energy > 0 then baddie_energy = baddie_energy - 1
+      bend
+    bend
+  return
+
+
+'-------------
+.adjust_coords
+'-------------
+  if mirror = 0 then begin
+    x1 = frmx + x1
+    y1 = frmy + y1
+    x2 = frmx + x2
+    y2 = frmy + y2
+  bend:else begin
+    tmpx1 = x1
+    x1 = frmx + frmw - x2 - 1
+    y1 = frmy + y1
+    x2 = frmx + frmw - tmpx1 - 1
+    y2 = frmy + y2
+  bend
+  return
+
+
+'-------------------
+.check_box_collision
+'-------------------
+  if not ((o_x1 > x2) or {x5F}
+          (o_x2 < x1) or {x5F}
+          (o_y1 > y2) or {x5F}
+          (o_y2 < y1)) then {x5F}
+  begin
+    ret% = 1
+  bend:else begin
+    ret% = 0
+  bend
   return
 ÿ
