@@ -8,7 +8,7 @@ DONE- optimise 'grab' data to minimise memory use
   (for my daughter to 'connect' with this game better :))
 DONE- add baddie (with some dumb ai)
 DONE- devise some scrolling logic (when to scroll, when not to)
-- bounding box collision checks
+DONE- bounding box collision checks
 DONE- energy bars
 - sound effects
 - music
@@ -35,6 +35,6 @@ PROGRESS- split layers and player frames apart
   DONE- define hit boxes
   DONE- load/save hitboxes
   DONE- repair last remnants of $42000 access
-IN PROGRESS- update code to load up newly structured layers + player-frames + hit-boxes
+DONE- update code to load up newly structured layers + player-frames + hit-boxes
 - Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
 
