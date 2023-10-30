@@ -105,6 +105,7 @@
 #define STORE_END_POS = 1
 
 #declare store_state  ' are we storing start/end pos char/colour details
+#declare new_frame_flag
 
 #define KEY_UP = "{x91}"
 #define KEY_DOWN = "{x11}"
@@ -163,6 +164,7 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
 
   gosub init_vars
   gosub check_magic_signature
+  gosub check_edit_flag
 
   gosub locate_next_free_byte
 
@@ -241,7 +243,7 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   if a$=" " then begin
     store_state = store_state + 1
     if store_state = 2 then begin
-      gosub save_frame_to_memory
+      gosub save_new_frame_to_memory
       end
     bend
   bend
@@ -251,6 +253,14 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
     key on
     end
   bend
+  if a$="e" then begin
+    cursor 0,40
+    poke $5fffc, 1  ' edit flag on
+    poke $5fffd, curr_frame
+    key on
+    end
+  bend
+
   if a$ = KEY_F1 then gosub load_bin
   if a$ = KEY_F3 then gosub save_bin
   if a$ = KEY_F5 then gosub save_optimised
@@ -581,9 +591,9 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   return
 
 
-'--------------------
-.save_frame_to_memory
-'--------------------
+'------------------------
+.save_new_frame_to_memory
+'------------------------
   poke $40800 + startx + starty * 80, start_char
   poke $ff80000 + startx + starty * 80, start_color
 
@@ -594,13 +604,24 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   gosub locate_next_free_byte
 
   ptr = $50000 + bytes_used
+
+  new_frame_flag = 1
+  gosub save_frame_to_memory_at_ptr
+  return
+
+
+'---------------------------
+.save_frame_to_memory_at_ptr
+'---------------------------
   poke ptr + FRM_OFFSET_X, startx
   poke ptr + FRM_OFFSET_Y, starty
   poke ptr + FRM_OFFSET_W, x - startx + 1
   poke ptr + FRM_OFFSET_H, y - starty + 1
 
-  ln = FRM_OFFSET_DATA - FRM_OFFSET_HITBOXES
-  edma OP_FILL, ln, 0, ptr + FRM_OFFSET_HITBOXES
+  if new_frame_flag then begin
+    ln = FRM_OFFSET_DATA - FRM_OFFSET_HITBOXES
+    edma OP_FILL, ln, 0, ptr + FRM_OFFSET_HITBOXES
+  bend
 
   ptr = ptr + FRM_OFFSET_DATA
   for yidx = starty to y
@@ -617,14 +638,17 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
     next xidx
   next yidx
 
-  wpoke $50000 + OFFSET_DATA_SIZE, ptr - $50000
-  poke $50000 + OFFSET_NUM_FRAMES, frame_count + 1
+  if new_frame_flag then begin
+    wpoke $50000 + OFFSET_DATA_SIZE, ptr - $50000
+    poke $50000 + OFFSET_NUM_FRAMES, frame_count + 1
+  bend
 
   cursor 0,49
   print clr_line_right$;"frame count=";peek($50000 + OFFSET_NUM_FRAMES);
   print ", next-free=$";hex$(ptr);
   cursor 0,0
 
+  new_frame_flag = 0
   return
 
 
@@ -727,6 +751,8 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
 '------------------
 .get_curr_frame_ptr
 '------------------
+  frame_count = peek($50000 + OFFSET_NUM_FRAMES)
+
   ' traverse to find block
   ptr = $50000 + OFFSET_FRAME0
   for frmidx = 0 to frame_count
@@ -884,6 +910,25 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
       poke $50000 + OFFSET_NUM_FRAMES, 0
     bend
     print "{x93}";clr_line_right$;
+  bend
+  return
+
+'---------------
+.check_edit_flag
+'---------------
+  if peek($5fffc) = 1 then begin ' editing?
+    poke $5fffc, 0
+    curr_frame = peek($5fffd)
+
+    gosub get_curr_frame_ptr
+    startx = peek(ptr + FRM_OFFSET_X)
+    starty = peek(ptr + FRM_OFFSET_Y)
+    x = startx + peek(ptr + FRM_OFFSET_W) - 1
+    y = starty + peek(ptr + FRM_OFFSET_H) - 1
+
+    new_frame_flag = 0
+    gosub save_frame_to_memory_at_ptr
+    gosub draw_curr_frame
   bend
   return
 ÿ
