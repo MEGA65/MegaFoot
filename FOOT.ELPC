@@ -668,8 +668,14 @@ gosub set_palette
     kneel_flag = 0
   bend
 
-  ' if a$="<" then player_energy = player_energy - 1
-  ' if a$=">" then baddie_energy = baddie_energy - 1
+  if a$="<" and player_dat_fixed > DAT_PLAYER1 then begin
+    player_dat_fixed = player_dat_fixed - 1
+    player_dat_idx = player_dat_fixed
+  bend
+  if a$=">" and player_dat_fixed < DAT_PLAYER4 then begin
+    player_dat_fixed = player_dat_fixed + 1
+    player_dat_idx = player_dat_fixed
+  bend
 
 
   ' joystick input
