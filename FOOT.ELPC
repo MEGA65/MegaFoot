@@ -780,11 +780,16 @@ gosub set_palette
     bend
   bend
 
+  if px > (bx + 5) then player_mirror = 1
+  if bx > (px + 5) then player_mirror = 0
   return
 
 '--------------------------
 .consider_next_baddie_frame
 '--------------------------
+  if bx > (px + 5) then baddie_mirror = 1
+  if px > (bx + 5) then baddie_mirror = 0
+
   if baddie_anim <> ANIM_PWALK then begin
     baddie_frame = baddie_frame + 1
   bend
