@@ -10,6 +10,9 @@
 ' - Then use cursor keys to move to bottom-right point & press 'space'
 ' - Press '-' and '+' keys to move between previous and next frames
 ' - Press 'c' to redraw current frame
+' - Press 'y' to yank/copy a selected region
+' - Press 'p' to paste a selected region to current cursor location
+' - Press 'e' to edit current frame
 ' - Press 'd' to delete the current frame
 ' - Press 'l' then a frame# to load that frame
 ' - Press 'x' to exit program
@@ -100,6 +103,10 @@
 #declare b(50,3)  ' hitboxes
 #declare x1, y1, x2, y2
 #declare hb_sel = 0, hb_mode, idx
+
+#declare clipboard_char&(80*50)
+#declare clipboard_clr&(80*50)
+#declare clipw, cliph
 
 #define STORE_START_POS = 0
 #define STORE_END_POS = 1
@@ -217,6 +224,7 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   return
 
 '--------------
+
 .get_user_input
 '--------------
   getkey a$
@@ -226,6 +234,8 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   if a$ = KEY_UP and y > 0 then y = y - 1
   if a$ = KEY_DOWN and y < 49 then y = y + 1
   if a$ = "d" then gosub delete_frame
+  if a$ = "y" then gosub yank_selection
+  if a$ = "p" then gosub paste
 
   if a$ = "c" then begin
     print "{x93}";
@@ -411,37 +421,43 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
   bend
 
   if a$=KEY_RETURN then begin
-    hb_mode = hb_mode + 1
+    gosub get_selected_coords_into_x1y1x2y2
 
-    if hb_mode = HB_MODE_SEL_COORD1 then begin
-      gosub get_selected_coords
-      x = x1 : y = y1
-      gosub enter_coord
-      x1 = x
-      y1 = y
-      hb_mode = hb_mode + 1
-    bend
+    gosub get_selected_offset_into_k
 
-    if hb_mode = HB_MODE_SEL_COORD2 then begin
-      gosub enter_coord
-      x2 = x
-      y2 = y
-      hb_mode = hb_mode + 1
-    bend
-
-    if hb_mode = HB_MODE_COMPLETE then begin
-      gosub get_selected_offset_into_k
-
-      poke curr_ptr + k    , x1
-      poke curr_ptr + k + 1, y1
-      poke curr_ptr + k + 2, x2
-      poke curr_ptr + k + 3, y2
-
-      hb_mode = HB_MODE_BROWSE
-    bend
+    poke curr_ptr + k    , x1
+    poke curr_ptr + k + 1, y1
+    poke curr_ptr + k + 2, x2
+    poke curr_ptr + k + 3, y2
   bend
 
   return
+
+
+'---------------------------------
+.get_selected_coords_into_x1y1x2y2
+'---------------------------------
+  ' coord1
+  x = x1 : y = y1
+  store_state = STORE_START_POS
+  gosub enter_coord
+  x1 = x
+  y1 = y
+
+  ' coord2
+  store_state = STORE_END_POS
+  gosub enter_coord
+  x2 = x
+  y2 = y
+
+  poke $40800 + startx + starty * 80, start_char
+  poke $ff80000 + startx + starty * 80, start_color
+
+  poke $40800 + endx + endy * 80, end_char
+  poke $ff80000 + endx + endy * 80, end_color
+
+  return
+
 
 '----------------------------------
 .peek_selected_coords_into_x1y1x2y2
@@ -930,5 +946,69 @@ bx_offs(3) = FRM_OFFSET_HB_ATTACK
     gosub save_frame_to_memory_at_ptr
     gosub draw_curr_frame
   bend
+  return
+
+'--------------
+.yank_selection
+'--------------
+  poke $d020, peek($d020) + 1
+
+  ' select a region with cursor movement
+  gosub get_selected_coords_into_x1y1x2y2
+
+  ' copy it into a basic var
+  ptr = pointer(clipboard_char&(0))
+  ln = x2-x1+1
+  for y = y1 to y2
+    edma OP_COPY, ln, $40800+x1+y*80, ptr
+    ptr = ptr + ln
+  next y
+
+  ptr = pointer(clipboard_clr&(0))
+  for y = y1 to y2
+    edma OP_COPY, ln, $ff80000+x1+y*80, ptr
+    ptr = ptr + ln
+  next y
+
+  clipw = x2-x1+1
+  cliph = y2-y1+1
+
+  poke $d020, peek($d020) - 1
+  return
+
+'-----
+.paste
+'-----
+  ' copy selection from vars onto screen at current cursor position
+  x1 = x
+  y1 = y
+  x2 = x + clipw - 1
+  y2 = y + cliph - 1
+
+
+  ptr = pointer(clipboard_char&(0))
+  ln = x2-x1+1
+  for y = y1 to y2
+    edma OP_COPY, ln, ptr, $40800+x1+y*80
+    ptr = ptr + ln
+  next y
+
+  ptr = pointer(clipboard_clr&(0))
+  for y = y1 to y2
+    edma OP_COPY, ln, ptr, $ff80000+x1+y*80
+    ptr = ptr + ln
+  next y
+
+  ' TODO: re-save current frame
+  gosub save_frame_to_memory_at_ptr
+
+  gosub get_curr_frame_ptr
+  startx = peek(ptr + FRM_OFFSET_X)
+  starty = peek(ptr + FRM_OFFSET_Y)
+  x = startx + peek(ptr + FRM_OFFSET_W) - 1
+  y = starty + peek(ptr + FRM_OFFSET_H) - 1
+
+  new_frame_flag = 0
+  gosub save_frame_to_memory_at_ptr
   return
 ÿ

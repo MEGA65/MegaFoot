@@ -15,7 +15,7 @@ DONE- energy bars
 - scrolly text intro
 - title screen
 DONE- joystick support
-- add in deft's player/baddie head art variations
+IN PROGRESS- add in deft's player/baddie head art variations
 
 stretch goals
 -------------
@@ -26,12 +26,12 @@ Housekeeping todo:
 -----------------
 DONE- split layers and player frames apart
   (so that in future, people can add new layers, or player frames more comfortably)
-- make new players/enemy characters
+IN PROGRESS- make new players/enemy characters
   (so that player can have one of multiple heads. E.g. deft's new ones)
-- deft's art is here:
+IN PROGRESS- deft's art is here:
     - https://discord.com/channels/719326990221574164/805252939593416705/1164133584941097060
-- update 'grabber' tool to:
-  IN PROGRESS- add/edit existing frames
+DONE- update 'grabber' tool to:
+  DONE- add/edit existing frames
   DONE- define hit boxes
   DONE- load/save hitboxes
   DONE- repair last remnants of $42000 access
