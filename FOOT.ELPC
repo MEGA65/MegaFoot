@@ -31,14 +31,22 @@
 
 .petscii vars
 '------------
-#define FORM_LAYER = 0
-#define FORM_HUMAN = 1
-#define FORM_DUCK = 2
-#define FORM_MAX = 3
+#define FORM_LAYER   = 0
+#define FORM_HUMAN   = 1
+#define FORM_DUCK    = 2
+#define FORM_MAX     = 3
+
+#define DAT_LAYER   = 0
+#define DAT_PLAYER1 = 1
+#define DAT_PLAYER2 = 2
+#define DAT_PLAYER3 = 3
+#define DAT_PLAYER4 = 4
+#define DAT_DUCK    = 5
+#define DAT_MAX     = 6
 
 #declare data_addr = $42000
 #declare max_frames(FORM_MAX)
-#declare frame_addr(FORM_MAX, 25)
+#declare frame_addr(DAT_MAX, 25)
 #declare frame_dblup_addr(64)
 
 #declare jdir_raw, jfire, jdir
@@ -75,6 +83,7 @@
 #declare p_x1, p_y1, p_x2, p_y2
 #declare o_x1, o_y1, o_x2, o_y2
 #declare ret%
+#declare dat_idx
 
 #define CHAR_BOX_TL = 112
 #define CHAR_BOX_TR = 110
@@ -365,7 +374,6 @@ gosub set_palette
 
   return
 
-#declare data_loc(FORM_MAX)
 
 '---------
 .load_data
@@ -373,17 +381,38 @@ gosub set_palette
   ptr = $42000
   
   form = FORM_LAYER
+  dat_idx = DAT_LAYER
   bload "level1-bg.dat",p(ptr)
   gosub init_petscii_frames
   gosub prepare_double_copy_layer
   gosub _increment_ptr_to_next_free
 
   form = FORM_HUMAN
+  dat_idx = DAT_PLAYER1
   bload "player.dat",p(ptr)
   gosub init_petscii_frames
   gosub _increment_ptr_to_next_free
 
+  form = FORM_HUMAN
+  dat_idx = DAT_PLAYER2
+  bload "player2.dat",p(ptr)
+  gosub init_petscii_frames
+  gosub _increment_ptr_to_next_free
+
+  form = FORM_HUMAN
+  dat_idx = DAT_PLAYER3
+  bload "player3.dat",p(ptr)
+  gosub init_petscii_frames
+  gosub _increment_ptr_to_next_free
+
+  form = FORM_HUMAN
+  dat_idx = DAT_PLAYER4
+  bload "player4.dat",p(ptr)
+  gosub init_petscii_frames
+  gosub _increment_ptr_to_next_free
+
   form = FORM_DUCK
+  dat_idx = DAT_DUCK
   bload "duck.dat",p(ptr)
   gosub init_petscii_frames
   gosub _increment_ptr_to_next_free
@@ -452,7 +481,12 @@ gosub set_palette
 
   kneel_flag = 0
   player_form = FORM_HUMAN
+  player_dat_fixed = DAT_PLAYER1
+  player_dat_idx = player_dat_fixed
+
   baddie_form = FORM_HUMAN
+  baddie_dat_fixed = DAT_PLAYER2
+  baddie_dat_idx = baddie_dat_fixed
 
   player_frame = 0
   player_anim = form_anim(player_form, FANIM_WALK)
@@ -477,7 +511,7 @@ gosub set_palette
 
   frm_idx = 0
   do while frm_idx < max_frames(form)
-    frame_addr(form, frm_idx) = ptr
+    frame_addr(dat_idx, frm_idx) = ptr
     frmw = peek(ptr + FRM_OFFSET_W)
     frmh = peek(ptr + FRM_OFFSET_H)
     
@@ -497,7 +531,7 @@ gosub set_palette
   dblup_addr = $52000
 
   for frameidx = 0 to max_frames(FORM_LAYER)-1
-    ptr = frame_addr(FORM_LAYER, frameidx)
+    ptr = frame_addr(DAT_LAYER, frameidx)
     frmx = peek(ptr + FRM_OFFSET_X)
     frmy = peek(ptr + FRM_OFFSET_Y)
     frmw = peek(ptr + FRM_OFFSET_W)
@@ -605,8 +639,10 @@ gosub set_palette
   if a$="d" then begin
     if player_form = FORM_HUMAN then begin
       player_form = FORM_DUCK
+      player_dat_idx = DAT_DUCK
     bend:else begin
       player_form = FORM_HUMAN
+      player_dat_idx = player_dat_fixed
     bend
     player_anim = form_anim(player_form, FANIM_WALK)
     player_frame = 0
@@ -669,6 +705,7 @@ gosub set_palette
   fx=px : fy=py
   mirror = player_mirror
   form = player_form
+  dat_idx = player_dat_idx
   gosub draw_petscii_frame
 
   return
@@ -682,6 +719,7 @@ gosub set_palette
   fx=bx : fy=by
   mirror = baddie_mirror
   form = baddie_form
+  dat_idx = baddie_dat_idx
   gosub draw_petscii_frame
   return
 
@@ -784,7 +822,7 @@ gosub set_palette
 '------------------
   poke $4000b, $04  ' assure source bank 4 (for original frame data)
   if mirror = 1 then setbit $40006, 5:else clrbit $40006, 5
-  data_addr = frame_addr(form, frameidx)
+  data_addr = frame_addr(dat_idx, frameidx)
   frmx = peek(data_addr + FRM_OFFSET_X)
   frmy = peek(data_addr + FRM_OFFSET_Y)
   frmw = peek(data_addr + FRM_OFFSET_W)
@@ -824,7 +862,7 @@ gosub set_palette
 .draw_petscii_layer
 '------------------
   clrbit $40006, 5
-  data_addr = frame_addr(FORM_LAYER, frameidx)
+  data_addr = frame_addr(DAT_LAYER, frameidx)
   frmx = peek(data_addr + FRM_OFFSET_X)
   frmy = peek(data_addr + FRM_OFFSET_Y)
   frmw = peek(data_addr + FRM_OFFSET_W)
@@ -1054,13 +1092,13 @@ gosub set_palette
   tmp_mirror = mirror
   if character = PLAYER then begin
     frameidx = anim_order(baddie_form, baddie_anim, baddie_frame)
-    opponent_data_addr = frame_addr(baddie_form, frameidx)
+    opponent_data_addr = frame_addr(baddie_dat_idx, frameidx)
     opponent_mirror = baddie_mirror
     fx=bx : fy=by
   bend
   if character = BADDIE then begin
     frameidx = anim_order(player_form, player_anim, player_frame)
-    opponent_data_addr = frame_addr(player_form, frameidx)
+    opponent_data_addr = frame_addr(player_dat_idx, frameidx)
     opponent_mirror = player_mirror
     fx=px : fy=py
   bend
