@@ -27,7 +27,7 @@
 ' 5.2000 doubled-up layer buffer
 
 ' uncomment this line to add debug output
-#declare DEBUG = 1
+#declare DEBUG = 0
 
 .petscii vars
 '------------
@@ -67,7 +67,8 @@
 
 #declare dblup_addr = $52000
 
-#declare kneel_flag = 0
+#declare kneel_flag
+#declare baddie_kneel_flag
 
 #declare mirror, player_mirror, baddie_mirror, opponent_mirror, tmp_mirror
 
@@ -83,7 +84,9 @@
 #declare p_x1, p_y1, p_x2, p_y2
 #declare o_x1, o_y1, o_x2, o_y2
 #declare ret%
-#declare dat_idx
+#declare dat_idx, player_dat_idx, baddie_dat_idx
+#declare player_dat_fixed, baddie_dat_fixed
+#declare tmp
 
 #define CHAR_BOX_TL = 112
 #define CHAR_BOX_TR = 110
@@ -424,8 +427,14 @@ gosub set_palette
 '---------------------------
 ._increment_ptr_to_next_free
 '---------------------------
+  ptr = tmp
   sz = wpeek(ptr + OFFSET_DATA_SIZE)
+  'print
+  'print "inc sz = ";sz
+  'print "ptr = ";hex$(ptr + OFFSET_DATA_SIZE)
   ptr = ptr + sz
+
+  'get key a$
   return
 
 '-----------
@@ -484,6 +493,7 @@ gosub set_palette
   player_dat_fixed = DAT_PLAYER1
   player_dat_idx = player_dat_fixed
 
+  baddie_kneel_flag = 0
   baddie_form = FORM_HUMAN
   baddie_dat_fixed = DAT_PLAYER2
   baddie_dat_idx = baddie_dat_fixed
@@ -506,11 +516,18 @@ gosub set_palette
 '-------------------
 .init_petscii_frames
 '-------------------
+  tmp = ptr
   max_frames(form) = peek(ptr + OFFSET_NUM_FRAMES)
+  'print
+  'print "ptr=";hex$(ptr + OFFSET_NUM_FRAMES)
   ptr = ptr + OFFSET_FRAME0
+
+  'print
+  'print "form=";form;" - mx_frm=";max_frames(form);": ";
 
   frm_idx = 0
   do while frm_idx < max_frames(form)
+    print frm_idx;
     frame_addr(dat_idx, frm_idx) = ptr
     frmw = peek(ptr + FRM_OFFSET_W)
     frmh = peek(ptr + FRM_OFFSET_H)
@@ -522,6 +539,8 @@ gosub set_palette
 
     frm_idx = frm_idx + 1
   loop
+
+  ptr = tmp
   return
 
 
@@ -649,8 +668,8 @@ gosub set_palette
     kneel_flag = 0
   bend
 
-  if a$="<" then player_energy = player_energy - 1
-  if a$=">" then baddie_energy = baddie_energy - 1
+  ' if a$="<" then player_energy = player_energy - 1
+  ' if a$=">" then baddie_energy = baddie_energy - 1
 
 
   ' joystick input
@@ -744,8 +763,12 @@ gosub set_palette
 
   if player_frame >= max_frame(player_form, player_anim) then begin
     if player_anim = ANIM_PDIE then begin
-      player_anim = ANIM_PKNEEL_UP
-      player_frame = 0
+      if player_energy > 0 then begin
+        player_anim = ANIM_PKNEEL_UP
+        player_frame = 0
+      bend:else begin
+        player_frame = max_frame(player_form, player_anim) - 1
+      bend
       return
     bend
     if kneel_flag = 1 and player_anim <> ANIM_PKNEEL_DN then begin
@@ -763,7 +786,27 @@ gosub set_palette
 .consider_next_baddie_frame
 '--------------------------
   if baddie_anim <> ANIM_PWALK then begin
-    baddie_frame = mod(baddie_frame + 1, max_frame(baddie_form, baddie_anim))
+    baddie_frame = baddie_frame + 1
+  bend
+
+  if baddie_frame >= max_frame(baddie_form, baddie_anim) then begin
+    if baddie_anim = ANIM_PDIE then begin
+      if baddie_energy > 0 then begin
+        baddie_anim = ANIM_PKNEEL_UP
+        baddie_frame = 0
+      bend:else begin
+        baddie_frame = max_frame(baddie_form, baddie_anim) - 1
+      bend
+      return
+    bend
+    if baddie_kneel_flag = 1 and baddie_anim <> ANIM_PKNEEL_DN then begin
+      baddie_anim = ANIM_PKNEEL_DN
+      baddie_frame = max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) - 1
+    bend:else begin
+      baddie_anim = form_anim(baddie_form, FANIM_WALK)
+      baddie_frame = 0
+    bend
+    return
   bend
 
   gosub if_player_far_walk_closer
@@ -854,6 +897,8 @@ gosub set_palette
   next yy
 
   if DEBUG then gosub draw_boxes
+
+  gosub check_if_hit_opponent
 
   return
 
@@ -1034,7 +1079,7 @@ gosub set_palette
       if idx = 3 then begin
         draw_color = 2
         gosub draw_box
-        gosub check_if_hit_opponent
+        ' gosub check_if_hit_opponent
       bend:else begin
         gosub draw_box
       bend
@@ -1089,6 +1134,8 @@ gosub set_palette
 '---------------------
 .check_if_hit_opponent
 '---------------------
+  data_addr = frame_addr(dat_idx, frameidx)
+
   tmp_mirror = mirror
   if character = PLAYER then begin
     frameidx = anim_order(baddie_form, baddie_anim, baddie_frame)
@@ -1156,6 +1203,7 @@ gosub set_palette
   next idx
 
   mirror = tmp_mirror
+  ptr = frame_addr(dat_idx, frameidx)
   return
 
 
