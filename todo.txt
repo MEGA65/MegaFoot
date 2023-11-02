@@ -2,20 +2,23 @@ TODO:
 ----
 - make clouds move independently
 - make sun set slowly over time
+DONE- reverse joystick attack direction if player direction has changed
+DONE- sound effects
+- jumps
+- music
+- scrolly text intro
+- title screen
+- Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
 DONE- optimise 'grab' data to minimise memory use
   (and make room for baddie frames)
-- add female player option
+DONE- add female player option
   (for my daughter to 'connect' with this game better :))
 DONE- add baddie (with some dumb ai)
 DONE- devise some scrolling logic (when to scroll, when not to)
 DONE- bounding box collision checks
 DONE- energy bars
-- sound effects
-- music
-- scrolly text intro
-- title screen
 DONE- joystick support
-IN PROGRESS- add in deft's player/baddie head art variations
+DONE- add in deft's player/baddie head art variations
 
 stretch goals
 -------------
@@ -26,9 +29,9 @@ Housekeeping todo:
 -----------------
 DONE- split layers and player frames apart
   (so that in future, people can add new layers, or player frames more comfortably)
-IN PROGRESS- make new players/enemy characters
+DONE- make new players/enemy characters
   (so that player can have one of multiple heads. E.g. deft's new ones)
-IN PROGRESS- deft's art is here:
+DONE- deft's art is here:
     - https://discord.com/channels/719326990221574164/805252939593416705/1164133584941097060
 DONE- update 'grabber' tool to:
   DONE- add/edit existing frames
@@ -36,5 +39,4 @@ DONE- update 'grabber' tool to:
   DONE- load/save hitboxes
   DONE- repair last remnants of $42000 access
 DONE- update code to load up newly structured layers + player-frames + hit-boxes
-- Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
 
