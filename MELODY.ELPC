@@ -226,11 +226,9 @@ dur$(D_SIXTEENTH, DKEY)  = "5"
 #define KEY_LOWERCASE = chr$(14)
 #define KEY_UPPERCASE = chr$(142)
 
-#define ESC_80_50 = KEY_ESCAPE;"5"
-
 .init
 '----
-print "{x93}";KEY_LOWERCASE;ESC_80_50
+print "{x93}";KEY_LOWERCASE;KEY_ESCAPE;"5";
 play : play ""
 
 .main
