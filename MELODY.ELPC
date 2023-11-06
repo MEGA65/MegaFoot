@@ -4,8 +4,8 @@
 ' ----
 '    Up arrow = Move to previous voice
 '  Down arrow = Move to next voice
-'  Left arrow = Move left within currrent voie string
-' Right arrow = Move right within current voie string
+'  Left arrow = Move left within currrent voice string
+' Right arrow = Move right within current voice string
 '    INST/DEL = Delete char in current voice string
 '       ESC,J = Move to start of current voice string
 '       ESC,K = Move to end of current voice string
@@ -95,6 +95,7 @@ FILTTYPE filt(10) = [ {x5F}
 #declare seq_chunk(100), seq_extra(100)
 #declare echo_m, echo_b, echo_sz = .05, chunk_rpt
 #declare v1$, v2$, v3$, v4$, v5$, v6$
+#declare tmp
 
 .cmds
 #define CMD_TEMPO = -1
@@ -411,6 +412,7 @@ play : play ""
   
   delete (key$)
   dopen #2,(key$),w,u8
+  tmp = chunk_idx
 
   ' save melody chunks
   ' ------------------
@@ -461,7 +463,7 @@ play : play ""
 
   dclose #2
 
-  chunk_idx = 0
+  chunk_idx = tmp
   return
 
 .save_as_text
