@@ -832,6 +832,7 @@ play : play ""
   if k = CMD_TEMPO then begin
     k = seq_extra(plyptr)
     tempo (k)
+    tmpo% = k
   bend
   if k = CMD_FILTER then begin
     k = seq_extra(plyptr)
@@ -1228,6 +1229,7 @@ play : play ""
     chunk_rpt = 0
     play
     gosub set_all_env
+    tempo tmpo%
   bend
 
   if a$=KEY_SPACE then begin
@@ -1236,6 +1238,7 @@ play : play ""
     chunk_rpt = 0
     play
     gosub set_all_env
+    tempo tmpo%
   bend
   if a$=KEY_RETURN then gosub edit_chunk_cell
   if a$=KEY_ESCAPE then plyptr = -1 : plyflag = 0
