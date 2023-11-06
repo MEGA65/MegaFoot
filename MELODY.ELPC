@@ -1,0 +1,1322 @@
+#output playmaker
+
+' Keys:
+' ----
+'    Up arrow = Move to previous voice
+'  Down arrow = Move to next voice
+'  Left arrow = Move left within currrent voie string
+' Right arrow = Move right within current voie string
+'    INST/DEL = Delete char in current voice string
+'       ESC,J = Move to start of current voice string
+'       ESC,K = Move to end of current voice string
+'      CTRL+W = Move forward one word in current voice string
+'      CTRL+U = Move back one word in current voice string
+'           < = Show previous song chunk
+'           > = Show next song chunk
+'           - = Decrease tempo
+'           + = Increase tempo
+'      MEGA+Q = Quit program / Exit Env Editor
+'          F1 = Load
+'          F3 = Save
+'          F7 = Envelope editor
+'          F8 = Filter editor
+'   F9/CTRL-P = Chunk sequencer
+
+trap runstop_trapper
+
+.declarations
+'------------
+#declare chunk_idx = 0
+#declare chunk_cnt = 0
+#define chunk_max = 50
+
+#declare vidx, idx
+#declare cursor_x = 0
+#declare cursor_y = 0
+
+#declare v$(5,chunk_max)
+
+#declare key$
+#declare valid$="cdefgab0123456789 #$.hiqrswotuxmpl"
+#declare val$
+#declare tmpo% = 12
+
+#declare esc_flag% = 0
+
+#struct ENVTYPE name$, attack, decay, sustain, release, waveform, pw
+
+ENVTYPE envs(9) = [ {x5F}
+  [ "Piano",       0,  9,  0,  0,  2, 1536 ], {x5F}
+  [ "Accordion",  12,  0, 12,  0,  1,    0 ], {x5F}
+  [ "Calliope",    0,  0, 15,  0,  0,    0 ], {x5F}
+  [ "Drum",        0,  5,  5,  0,  3,    0 ], {x5F}
+  [ "Flute",       9,  4,  4,  0,  0,    0 ], {x5F}
+  [ "Guitar",      0,  9,  2,  1,  1,    0 ], {x5F}
+  [ "Harpsicrd",   0,  9,  0,  0,  2,  512 ], {x5F}
+  [ "Organ",       0,  9,  9,  0,  2, 2048 ], {x5F}
+  [ "Trumpet",     8,  9,  4,  1,  2,  512 ], {x5F}
+  [ "Xylophone",   0,  9,  0,  0,  0,    0 ]  {x5F}
+]
+
+#define DIR_NONE = 0
+#define DIR_UP   = 1
+#define DIR_DOWN = 2
+#define DIR_OSC  = 3
+
+#declare dir_name$(3)
+dir_name$(0) = "NONE"
+dir_name$(1) = "UP"
+dir_name$(2) = "DOWN"
+dir_name$(3) = "OSC"
+
+#define F_OFF = 0
+#define F_ON  = 1
+
+#struct FILTTYPE name$, freq, lp, bp, hp, res, dir, min, sweep
+
+FILTTYPE filt(10) = [ {x5F}
+  [ "lowp_up",    1000, F_ON,  F_OFF, F_OFF, 15, DIR_UP,   100, 10 ], {x5F}
+  [ "lowp_down",  1000, F_ON,  F_OFF, F_OFF, 15, DIR_DOWN, 100, 10 ], {x5F}
+  [ "lowp_osc",   1000, F_ON,  F_OFF, F_OFF, 15, DIR_OSC,  100, 10 ], {x5F}
+{x5F}
+  [ "bandp_up",   1000, F_OFF, F_ON,  F_OFF, 15, DIR_UP,   100, 10 ], {x5F}
+  [ "bandp_down", 1000, F_OFF, F_ON,  F_OFF, 15, DIR_DOWN, 100, 10 ], {x5F}
+  [ "bandp_osc",  1000, F_OFF, F_ON,  F_OFF, 15, DIR_OSC,  100, 10 ], {x5F}
+{x5F}
+  [ "highp_up",   1000, F_OFF, F_OFF, F_ON,  15, DIR_UP,   100, 10 ], {x5F}
+  [ "highp_down", 1000, F_OFF, F_OFF, F_ON,  15, DIR_DOWN, 100, 10 ], {x5F}
+  [ "highp_osc",  1000, F_OFF, F_OFF, F_ON,  15, DIR_OSC,  100, 10 ], {x5F}
+{x5F}
+  [ "spare_1",    0,    F_OFF, F_OFF, F_OFF, 0,  DIR_NONE, 0,   0  ], {x5F}
+  [ "spare_2",    0,    F_OFF, F_OFF, F_OFF, 0,  DIR_NONE, 0,   0  ], {x5F}
+{x5F}
+]
+
+#declare seq_chunk(100), seq_extra(100)
+#declare echo_m, echo_b, echo_sz = .05, chunk_rpt
+#declare v1$, v2$, v3$, v4$, v5$, v6$
+
+.cmds
+#define CMD_TEMPO = -1
+#define CMD_FILTER = -2
+#define CMD_LOOP = -3
+#define CMD_ECHO_M1 = -4   ' echo melody: voice 1 on voice 4
+#define CMD_ECHO_M2 = -5   ' echo melody: voice 1 on voice 2 + 4 + 5
+#define CMD_ECHO_B  = -6   ' echo bass:   voice 3 on voice 6
+#define CMD_ECHO_OFF = -7
+#define CMD_ECHO_SZ = -8
+#define CMD_MAX = 9
+
+#declare seq_cmdname$(10)
+seq_cmdname$(1) = "TEMPO"
+seq_cmdname$(2) = "FILTER"
+seq_cmdname$(3) = "LOOP"
+seq_cmdname$(4) = "ECHO_M1"
+seq_cmdname$(5) = "ECHO_M2"
+seq_cmdname$(6) = "ECHO_B"
+seq_cmdname$(7) = "ECHO_OFF"
+seq_cmdname$(8) = "ECHO_SZ"
+
+
+#declare seqcnt, seqptr
+
+#declare row, col, srow, scol, a$, v, maxv, v$
+
+#struct KEY_TYPE in$, out$
+
+KEY_TYPE keys(11) = [ {x5F}
+  [ "a", "c", ], {x5F}
+  [ "w", "#c", ], {x5F}
+  [ "s", "d", ], {x5F}
+  [ "e", "#d", ], {x5F}
+  [ "d", "e", ], {x5F}
+  [ "f", "f", ], {x5F}
+  [ "t", "#f", ], {x5F}
+  [ "g", "g", ], {x5F}
+  [ "y", "#g", ], {x5F}
+  [ "h", "a", ], {x5F}
+  [ "u", "#a", ], {x5F}
+  [ "j", "b", ] {x5F}
+]
+
+#declare pstr$, k, delta
+
+#declare wname$(4)
+wname$(0) = "TRI"
+wname$(1) = "SAW"
+wname$(2) = "PULSE"
+wname$(3) = "NOISE"
+wname$(4) = "RING"
+
+#declare filt_state_name$(2)
+filt_state_name$(0) = "OFF"
+filt_state_name$(1) = "ON"
+
+#declare fpreset = 1
+
+#declare fscol = 0, fsrow = 0, ffocus = 0, fsel = -1
+#declare oct = 5
+
+#declare curr_freq, curr_dir
+#declare handled
+#declare plyptr = -1, plyflag
+
+.duration
+'--------
+#define DNAME = 0
+#define DCHAR = 1
+#define DKEY  = 2
+
+#define D_WHOLE = 0
+#define D_HALF = 1
+#define D_QUARTER = 2
+#define D_EIGHTH = 3
+#define D_SIXTEENTH = 4
+
+#declare sdur = 2
+#declare dur$(5,2)
+dur$(D_WHOLE, DNAME) = "whole"
+dur$(D_WHOLE, DCHAR) = "w"
+dur$(D_WHOLE, DKEY)  = "1"
+
+dur$(D_HALF, DNAME) = "half"
+dur$(D_HALF, DCHAR) = "h"
+dur$(D_HALF, DKEY)  = "2"
+
+dur$(D_QUARTER, DNAME) = "quarter"
+dur$(D_QUARTER, DCHAR) = "q"
+dur$(D_QUARTER, DKEY)  = "3"
+
+dur$(D_EIGHTH, DNAME) = "eighth"
+dur$(D_EIGHTH, DCHAR) = "i"
+dur$(D_EIGHTH, DKEY)  = "4"
+
+dur$(D_SIXTEENTH, DNAME) = "sixteenth"
+dur$(D_SIXTEENTH, DCHAR) = "s"
+dur$(D_SIXTEENTH, DKEY)  = "5"
+
+
+.keys
+'----
+#define KEY_UP = "{x91}"
+#define KEY_DOWN = "{x11}"
+#define KEY_LEFT = "{x9D}"
+#define KEY_RIGHT = "{x1D}"
+#define KEY_SPACE = " "
+#define KEY_DEL = "{x14}"
+#define KEY_CTRL_W = "{x17}"
+#define KEY_CTRL_U = "{x15}"
+#define KEY_MEGA_Q = "«"
+#define KEY_F1 = "{x85}"
+#define KEY_F3 = "{x86}"
+#define KEY_F4 = "{x8A}"
+#define KEY_F7 = "{x88}"
+#define KEY_F8 = "{x8C}"
+#define KEY_F9 = chr$(16)
+#define KEY_RETURN = chr$(13)
+#define KEY_ESCAPE = chr$(27)
+#define KEY_SHIFT_RETURN = chr$(141)
+#define KEY_SHIFT_PLUS = "Û"
+#define KEY_SHIFT_MINUS = "Ý"
+#define KEY_REV_ON = "{x12}"
+#define KEY_REV_OFF = "{x92}"
+#define KEY_TAB = chr$(9)
+#define KEY_HOME = "{x13}"
+#define KEY_CLR  = "{x93}"
+#define KEY_LOWERCASE = chr$(14)
+#define KEY_UPPERCASE = chr$(142)
+
+#define ESC_80_50 = KEY_ESCAPE;"5"
+
+.init
+'----
+print "{x93}";KEY_LOWERCASE;ESC_80_50
+play : play ""
+
+.main
+'----
+  key off
+  gosub draw_editor_screen
+  gosub user_input
+  goto main
+
+.draw_editor_screen
+'------------------
+  cursor 0,0:print "{x93}playmaker v0.5 - by gurce isikyildiz"
+  print "---------"
+  print "<: prev chunk, >: next chunk, -/+ tempo, F7=env editor, F9/CTRL-P=seq editor"
+  print "RTN: play curr voice, SHFT+RTN: play all voice, F1=load, F3=save, MEGA+Q=quit"
+  print
+
+  gosub draw_current_chunk
+  return
+
+.draw_current_chunk
+'------------------
+  print "tempo: "; tmpo%
+  print "chunk_idx: "; chunk_idx  
+   
+  for vidx=0 to 5
+    if cursor_y <> vidx then begin
+      cursor 0,9+vidx*2:print chr$(27);"q";"v";vidx+1;": ";v$(vidx,chunk_idx);
+    bend:else begin
+      cursor 0,9+vidx*2:print chr$(27);"q";"v";vidx+1;": ";
+      for idx=1 to len(v$(vidx,chunk_idx))
+        if cursor_x = idx-1 then begin
+          print "{x12}";mid$(v$(vidx,chunk_idx),idx,1);"{x92}";
+        bend:else begin
+          print mid$(v$(vidx,chunk_idx),idx,1);
+        bend
+      next idx
+      if len(v$(vidx,chunk_idx)) = 0 or cursor_x=len(v$(vidx,chunk_idx)) then print "{x12} {x92}";
+    bend
+  next vidx
+  return
+
+.check_valid_key
+'---------------
+  for idx=1 to len(valid$)
+    val$=mid$(valid$,idx,1)
+    if key$= val$ then begin
+      if cursor_x < len(v$(cursor_y,chunk_idx)) then begin
+        v$(cursor_y,chunk_idx) = left$(v$(cursor_y,chunk_idx),cursor_x) {x5F}
+          + val$ + mid$(v$(cursor_y,chunk_idx),cursor_x+1)
+        cursor_x=cursor_x+1
+        return
+      bend
+      v$(cursor_y,chunk_idx)=v$(cursor_y,chunk_idx)+val$
+      cursor_x=cursor_x+1
+      return
+    bend
+  next idx
+  return
+
+.forward_word
+'------------
+  if cursor_x = len(v$(cursor_y,chunk_idx)) then return
+
+  do while mid$(v$(cursor_y,chunk_idx),cursor_x+1,1) <> " "
+    cursor_x=cursor_x+1
+    if cursor_x = len(v$(cursor_y,chunk_idx)) then return
+  loop
+  do while mid$(v$(cursor_y,chunk_idx),cursor_x+1,1) = " "
+    cursor_x=cursor_x+1
+    if cursor_x = len(v$(cursor_y,chunk_idx)) then return
+  loop
+
+  return
+
+.previous_word
+'-------------
+  if cursor_x = 0 then return
+  if cursor_x = 1 then cursor_x = 0: return
+
+  cursor_x = cursor_x - 1
+  do while mid$(v$(cursor_y,chunk_idx),cursor_x+1,1) = " "
+    cursor_x=cursor_x-1
+    if cursor_x = 0 then return
+  loop
+  do while mid$(v$(cursor_y,chunk_idx),cursor_x+1,1) <> " "
+    cursor_x=cursor_x-1
+    if cursor_x = 0 then return
+  loop
+  cursor_x=cursor_x+1
+
+  return
+
+.set_all_env
+'-----------
+  for row = 0 to 9
+    gosub set_env
+  next row
+  return
+
+.load
+'----
+  input "load name: ";key$
+  if key$="" then return
+
+  dopen #2,(key$),r,u8
+
+  ' load melody chunks
+  ' ------------------
+  input #2, chunk_cnt
+  for chunk_idx = 0 to chunk_cnt - 1
+    for vidx=0 to 5
+      input #2,v$(vidx, chunk_idx)
+    next vidx
+  next chunk_idx
+
+  input #2,tmpo%
+  
+  ' load envelopes
+  ' --------------
+  for row = 0 to 9
+    input #2, envs_name$(row)
+    input #2, envs_attack(row)
+    input #2, envs_decay(row)
+    input #2, envs_sustain(row)
+    input #2, envs_release(row)
+    input #2, envs_waveform(row)
+    input #2, envs_pw(row)
+    gosub set_env
+  next row
+  print
+
+  ' load filter presets
+  ' -------------------
+  for row = 0 to 10
+    input #2, filt_name$(row)
+    input #2, filt_freq(row)
+    input #2, filt_lp(row)
+    input #2, filt_bp(row)
+    input #2, filt_hp(row)
+    input #2, filt_res(row)
+    input #2, filt_dir(row)
+    input #2, filt_min(row)
+    input #2, filt_sweep(row)
+  next row
+
+  ' load sequence
+  ' -------------
+  seqcnt = 0
+  input #2, seqcnt
+  row = 0
+  do while row < seqcnt
+    input #2, seq_chunk(row)
+    input #2, seq_extra(row)
+    row = row + 1
+  loop
+
+
+  dclose #2
+
+  chunk_idx = 0
+  return
+
+.get_chunk_cnt
+'-------------
+  chunk_cnt = 0
+  for k = 0 to chunk_max
+    if v$(0,k)<>"" or v$(1,k)<>"" or v$(2,k)<>"" or v$(3,k)<>"" or v$(4,k)<>"" or v$(5,k)<>"" then begin
+      chunk_cnt = k + 1
+    bend
+  next k
+
+  return
+
+
+.save
+'----
+  input "save name: ";key$
+  if key$="" then return
+  
+  delete (key$)
+  dopen #2,(key$),w,u8
+
+  ' save melody chunks
+  ' ------------------
+  gosub get_chunk_cnt
+  print #2, chunk_cnt
+  for chunk_idx = 0 to chunk_cnt - 1
+    for vidx=0 to 5
+      print #2,v$(vidx, chunk_idx)
+    next vidx
+  next chunk_idx
+  print #2,tmpo%
+
+  ' save envelopes
+  ' --------------
+  for row = 0 to 9
+    print #2, envs_name$(row)
+    print #2, envs_attack(row)
+    print #2, envs_decay(row)
+    print #2, envs_sustain(row)
+    print #2, envs_release(row)
+    print #2, envs_waveform(row)
+    print #2, envs_pw(row)
+  next row
+
+  ' save filter presets
+  ' -------------------
+  for row = 0 to 10
+    print #2, filt_name$(row)
+    print #2, filt_freq(row)
+    print #2, filt_lp(row)
+    print #2, filt_bp(row)
+    print #2, filt_hp(row)
+    print #2, filt_res(row)
+    print #2, filt_dir(row)
+    print #2, filt_min(row)
+    print #2, filt_sweep(row)
+  next row
+
+  ' save sequence
+  ' -------------
+  print #2, seqcnt
+  row = 0
+  do while row < seqcnt
+    print #2, seq_chunk(row)
+    print #2, seq_extra(row)
+    row = row + 1
+  loop
+
+  dclose #2
+
+  chunk_idx = 0
+  return
+
+.save_as_text
+'------------
+  input "save (as text) name: ";key$
+  if key$="" then return
+
+  delete (key$)
+    
+  dopen #2,(key$),w,u8
+  for chunk_idx = 0 to chunk_max
+    for vidx=0 to 5
+      print #2, "v";chr$(49+vidx);"$(";str$(chunk_idx);")=";
+      print #2, chr$(34);v$(vidx, chunk_idx);chr$(34)
+    next vidx  
+    print #2, ""
+  next chunk_idx
+  dclose #2
+
+  chunk_idx = 0
+  return
+
+
+.user_input
+'----------
+  ' getkey key$
+  gosub read_key_loop
+  key$ = a$
+
+  ' down arrow?
+  if key$ = KEY_DOWN and cursor_y<5 then begin
+    cursor_y = cursor_y + 1
+    if cursor_x > len(v$(cursor_y,chunk_idx)) then cursor_x = {x5F}
+      len(v$(cursor_y,chunk_idx))
+  bend
+
+  ' up arrow?
+  if key$ = KEY_UP and cursor_y>0 then begin
+    cursor_y = cursor_y - 1
+    if cursor_x > len(v$(cursor_y,chunk_idx)) then {x5F}
+      cursor_x = len(v$(cursor_y,chunk_idx))
+  bend
+
+  ' right arrow?
+  if key$ = KEY_RIGHT and cursor_x < len(v$(cursor_y,chunk_idx)) then begin
+    cursor_x=cursor_x+1
+  bend
+
+  ' left arrow?
+  if key$ = KEY_LEFT and cursor_x > 0 then cursor_x=cursor_x-1
+
+  ' backspace (inst/del)?
+  if key$ = KEY_DEL and cursor_x > 0 then begin
+    v$(cursor_y,chunk_idx)=left$(v$(cursor_y,chunk_idx),cursor_x-1) {x5F}
+      + mid$(v$(cursor_y,chunk_idx),cursor_x+1)
+    cursor_x=cursor_x-1
+  bend
+
+  if esc_flag% then begin
+    esc_flag%=0
+    if key$ = "j" then begin:cursor_x=0:bend
+    if key$ = "k" then begin:cursor_x=len(v$(cursor_y,chunk_idx)):bend
+    key$=""
+  bend
+
+  if key$ = KEY_ESCAPE then esc_flag%=abs(esc_flag%-1)
+
+  ' ctrl-w = forward one word
+  if key$ = KEY_CTRL_W then gosub forward_word
+
+  ' ctrl-u = back one word
+  if key$ = KEY_CTRL_U then gosub previous_word
+
+  ' < / > = previous/next chunk
+  if key$ = "<" and chunk_idx>0 then begin
+    chunk_idx=chunk_idx-1
+    cursor_x=0
+  bend
+  if key$ = ">" and chunk_idx<chunk_max then begin
+    chunk_idx=chunk_idx+1
+    cursor_x=0
+  bend
+
+  ' +/- = tempo change
+  if key$="-" then tmpo%=tmpo%-1
+  if key$="+" then tmpo%=tmpo%+1
+
+  ' mega-q = exit
+  if key$ = KEY_MEGA_Q then begin
+    print "are you sure? (y/n)"
+    get key a$
+    if a$="y" then key on:end
+  bend
+
+  if key$ = KEY_F1 then gosub load
+  if key$ = KEY_F3 then gosub save
+  if key$ = KEY_F7 then gosub envelope_editor
+  if key$ = KEY_F9 then gosub chunk_sequencer
+
+  ' F4 = save as text
+  if key$ = KEY_F4 then gosub save_as_text
+
+  ' return=play row
+  if key$ = KEY_RETURN then tempo tmpo% : play v$(cursor_y,chunk_idx)
+
+  ' shift+return=play all channels
+  if key$ = KEY_SHIFT_RETURN then begin
+    tempo tmpo%
+    gosub play_chunk_idx
+  bend
+
+  gosub check_valid_key
+  return
+
+.play_chunk_idx
+'--------------
+  v1$ = v$(0,chunk_idx)
+  v2$ = v$(1,chunk_idx)
+  v3$ = v$(2,chunk_idx)
+  v4$ = v$(3,chunk_idx)
+  v5$ = v$(4,chunk_idx)
+  v6$ = v$(5,chunk_idx)
+
+  if echo_m = 0 and echo_b = 0 then begin
+    play v1$, v2$, v3$, v4$, v5$, v6$
+    return
+  bend
+
+  if echo_m = 1 and echo_b = 0 then begin
+    play v1$, v2$, v3$,    , v5$, v6$
+    sleep (echo_sz)
+    play    ,    ,    , v1$
+  bend
+
+  if echo_m = 1 and echo_b = 1 then begin
+    play v1$, v2$, v3$,    , v5$
+    sleep (echo_sz)
+    play    ,    ,    , v1$,    , v3$
+  bend
+
+  if echo_m = 2 and echo_b = 0 then begin
+    play v1$,    , v3$,    ,    , v6$
+    sleep (echo_sz)
+    play    ,    ,    , v1$
+    sleep (echo_sz)
+    play    , v1$
+    sleep (echo_sz)
+    play    ,    ,    ,    , v1$
+  bend
+
+  if echo_m = 2 and echo_b = 1 then begin
+    play v1$,    , v3$
+    sleep (echo_sz)
+    play    ,    ,    , v1$
+    sleep (echo_sz)
+    play    , v1$,    ,    ,    , v3$
+    sleep (echo_sz)
+    play    ,    ,    ,    , v1$
+  bend
+
+  return
+
+.envelope_editor
+'---------------
+  do while 1
+    gosub draw_table
+    gosub get_user_input_for_table
+
+    ' alt+q to exit
+    if a$ = KEY_MEGA_Q then exit
+  loop
+  return
+
+
+
+.draw_table
+'----------
+  print "{x93}env editor";KEY_TAB;dur$(sdur, DNAME);KEY_TAB;"octave";oct
+  print "----------"
+  print "-/+: decr/incr, RTN: edit, TAB: focus env/filter, MEGA+Q: exit"
+  print
+  print "   NAME";KEY_TAB;KEY_TAB;"ATTACK";KEY_TAB;"DECAY";KEY_TAB;"SUSTAIN";KEY_TAB;"RELEASE";KEY_TAB;
+  print "WAVEFRM";KEY_TAB;"PULSEWIDTH"
+
+  for row = 0 to 9
+    if srow = row then print ">";:else print " ";
+    print row;": ";
+    col = 0 : v$ = envs_name$(row)
+    gosub show_cell
+    col = 1 : v = envs_attack(row)
+    gosub show_cell
+    col = 2 : v = envs_decay(row)
+    gosub show_cell
+    col = 3 : v = envs_sustain(row)
+    gosub show_cell
+    col = 4 : v = envs_release(row)
+    gosub show_cell
+    col = 5 : v = envs_waveform(row)
+    gosub show_cell
+    col = 6 : v = envs_pw(row)
+    gosub show_cell
+    print
+  next row
+
+  print
+  print "filter editor"
+  print "-------------";
+  print KEY_TAB;"freq";KEY_TAB;"lp";KEY_TAB;"bp";KEY_TAB;"hp";KEY_TAB;"res";
+  print KEY_TAB;"dir";KEY_TAB;"min";KEY_TAB;"sweep"
+
+  for fpreset = 0 to 10
+    gosub show_filter
+  next fpreset
+
+  return
+
+
+.show_filter
+'-----------
+  if fsel = fpreset then print ">";:else print " ";
+
+  k = 0 : gosub check_show_filter_highlight
+  print filt_name$(fpreset);"  ";KEY_TAB;
+
+  k = 1 : gosub check_show_filter_highlight
+  print filt_freq(fpreset);KEY_TAB;
+
+  k = 2 : gosub check_show_filter_highlight
+  print filt_state_name$(filt_lp(fpreset));KEY_TAB;
+
+  k = 3 : gosub check_show_filter_highlight
+  print filt_state_name$(filt_bp(fpreset));KEY_TAB;
+
+  k = 4 : gosub check_show_filter_highlight
+  print filt_state_name$(filt_hp(fpreset));KEY_TAB;
+
+  k = 5 : gosub check_show_filter_highlight
+  print filt_res(fpreset);KEY_TAB;
+
+  k = 6 : gosub check_show_filter_highlight
+  print dir_name$(filt_dir(fpreset));KEY_TAB;
+
+  k = 7 : gosub check_show_filter_highlight
+  print filt_min(fpreset);KEY_TAB;
+
+  k = 8 : gosub check_show_filter_highlight
+  print filt_sweep(fpreset);
+
+  print KEY_REV_OFF
+  return
+
+.check_show_filter_highlight
+'---------------------------
+  if fsrow = fpreset and ffocus = 1 and fscol = k then {x5F}
+    print KEY_REV_ON; : else print KEY_REV_OFF;
+  return
+
+
+.get_val
+'-------
+  if scol = 0 then v$ = envs_name$(srow)
+  if scol = 1 then v = envs_attack(srow)
+  if scol = 2 then v = envs_decay(srow)
+  if scol = 3 then v = envs_sustain(srow)
+  if scol = 4 then v = envs_release(srow)
+  if scol = 5 then v = envs_waveform(srow)
+  if scol = 6 then v = envs_pw(srow)
+
+  return
+
+.show_cell
+'---------
+  if srow=row and scol = col and ffocus=0 then print KEY_REV_ON;:else print KEY_REV_OFF;
+
+  if col = 0 then begin
+    print v$;KEY_TAB;"{x92}";
+    return
+  bend
+
+  if col = 5 then begin
+    print wname$(v);KEY_TAB;KEY_REV_OFF;
+    return
+  bend
+
+  ' else
+  print v;KEY_TAB;KEY_REV_OFF;
+  return
+
+
+.get_user_input_for_table
+'------------------------
+  ' get key a$
+  gosub read_key_loop
+  if a$ = KEY_LEFT and scol > 0 then scol = scol - 1
+  if a$ = KEY_RIGHT and scol < 6 then scol = scol + 1
+  if a$ = KEY_UP and srow > 0 then srow = srow - 1
+  if a$ = KEY_DOWN and srow < 9 then srow = srow + 1
+  if a$ = "+" or a$="=" then delta=1 : gosub incr_val
+  if a$ = "-" then delta=1 : gosub decr_val
+  if a$ = KEY_SHIFT_PLUS then delta=100 : gosub incr_val
+  if a$ = KEY_SHIFT_MINUS then delta=100 : gosub decr_val
+  if a$ = KEY_RETURN then a$ = "+" : gosub edit_env_field
+  if a$ = KEY_SHIFT_RETURN then a$ = "-" : gosub edit_env_field
+
+  if a$ = KEY_TAB then ffocus = 1 : gosub get_user_input_for_filters
+
+  gosub check_duration_change
+  gosub check_piano_keys
+  return
+
+.get_user_input_for_filters
+'--------------------------
+  do while 1
+    gosub draw_table
+
+    ' get key a$
+    gosub read_key_loop
+
+    if a$ = KEY_LEFT and fscol > 0 then fscol = fscol - 1
+    if a$ = KEY_RIGHT and fscol < 8 then fscol = fscol + 1
+    if a$ = KEY_UP and fsrow > 0 then fsrow = fsrow - 1
+    if a$ = KEY_DOWN and fsrow < 10 then fsrow = fsrow + 1
+    if a$ = "+" or a$="=" then delta=1 : gosub incr_fval
+    if a$ = "-" then delta=1 : gosub decr_fval
+    if a$ = KEY_SHIFT_PLUS then delta = 100 : gosub incr_fval
+    if a$ = KEY_SHIFT_MINUS then delta = 100 : gosub decr_fval
+
+    if a$ = " " then begin
+      if fsel = fsrow then fsel = -1:else fsel = fsrow
+      gosub apply_selected_filter
+    bend
+
+    if a$ = KEY_RETURN then gosub edit_filter_field:gosub apply_selected_filter
+
+    if a$ = KEY_TAB or a$ = KEY_MEGA_Q then exit
+
+    gosub check_duration_change
+    gosub check_piano_keys
+  loop
+  ffocus = 0
+  return
+
+.read_key_loop
+'-------------
+  a$ = ""
+  do while a$=""
+    get a$
+    if fsel <> -1 then begin
+      gosub update_selected_filter
+    bend
+    if plyflag = 1 then begin
+      if rplay(1) = 0 then gosub parse_current_seqptr
+    bend
+  loop
+  return
+
+.parse_current_seqptr
+'--------------------
+  k = seq_chunk(plyptr)
+  
+  if k >= 0 then begin
+    chunk_idx = k
+    if chunk_rpt <= 0 then chunk_rpt = seq_extra(plyptr)
+    gosub play_chunk_idx
+    sleep .1
+    gosub draw_sequence
+  bend
+  if k = CMD_TEMPO then begin
+    k = seq_extra(plyptr)
+    tempo (k)
+  bend
+  if k = CMD_FILTER then begin
+    k = seq_extra(plyptr)
+    fsrow = k
+    fsel = k
+    gosub apply_selected_filter
+  bend
+  if k = CMD_ECHO_M1 then echo_m = 1
+  if k = CMD_ECHO_M2 then echo_m = 2
+  if k = CMD_ECHO_B  then echo_b = 1
+  if k = CMD_ECHO_OFF then echo_m = 0 : echo_b = 0
+  if k = CMD_ECHO_SZ then echo_sz = seq_extra(plyptr)
+
+  if chunk_rpt > 0 then chunk_rpt = chunk_rpt - 1
+
+  if chunk_rpt <= 0 then plyptr = plyptr + 1
+
+  if k = CMD_LOOP then plyptr = 0
+
+  if plyptr >= seqcnt then plyflag = 0 : plyptr = -1
+  return
+
+.check_duration_change
+'---------------------
+  for k = D_WHOLE to D_SIXTEENTH
+    if a$ = dur$(k, DKEY) then sdur = k
+  next k
+
+  ' check octave too
+  if a$ = ">" and oct < 6 then oct = oct + 1
+  if a$ = "<" and oct > 0 then oct = oct - 1
+
+  return
+
+
+.update_selected_filter
+'----------------------
+  if fsel = -1 then return
+  if curr_dir = DIR_NONE then return
+
+  print "{x13}";KEY_TAB;KEY_TAB;KEY_TAB;KEY_TAB;KEY_TAB;chr$(27);"qcurr_freq=";curr_freq;
+  
+  ' NOTE: Can't use SETBIT for SID registers as the regs are write-only
+  '       (SETBIT will internally need a read prior to the write)
+
+  ' BUG? I couldn't do POKE $D415 (it became 868691 = $D4153 ?!)
+  wpoke 54293, (curr_freq and 7) + ((curr_freq >> 3) * 256)
+
+  wpoke 54357, (curr_freq and 7) + ((curr_freq >> 3) * 256)
+
+  if curr_dir = DIR_UP then begin
+    curr_freq = curr_freq + filt_sweep(fsel)
+    if curr_freq > filt_freq(fsel) then begin
+      curr_freq = filt_freq(fsel)
+      if filt_dir(fsel) = DIR_OSC then curr_dir = DIR_DOWN
+      if filt_dir(fsel) = DIR_UP then curr_freq = filt_min(fsel)
+    bend
+    return
+  bend
+
+  if curr_dir = DIR_DOWN then begin
+    curr_freq = curr_freq - filt_sweep(fsel)
+    if curr_freq < filt_min(fsel) then begin
+      curr_freq = filt_min(fsel)
+      if filt_dir(fsel) = DIR_OSC then curr_dir = DIR_UP
+      if filt_dir(fsel) = DIR_DOWN then curr_freq = filt_freq(fsel)
+    bend
+    return
+  bend
+
+  return
+
+
+.apply_selected_filter
+'---------------------
+  curr_freq = filt_freq(fsrow)
+  curr_dir = DIR_NONE
+  if   filt_dir(fsrow) = DIR_UP {x5F}
+    or filt_dir(fsrow) = DIR_OSC then begin
+    curr_freq = filt_min(fsrow)
+    curr_dir = DIR_UP
+  bend
+  if filt_dir(fsrow) = DIR_DOWN then begin
+    curr_dir = DIR_DOWN
+  bend
+
+  filter 1, filt_freq(fsrow), filt_lp(fsrow), {x5F} 
+         filt_bp(fsrow), filt_hp(fsrow), filt_res(fsrow)
+  filter 2, filt_freq(fsrow), filt_lp(fsrow), {x5F} 
+         filt_bp(fsrow), filt_hp(fsrow), filt_res(fsrow)
+
+  return
+
+.change_env_name
+'---------------
+  v$=""
+  input "new name: ",v$
+  if v$<>"" then envs_name$(srow) = v$
+  return
+
+.edit_env_field
+'--------------
+  if scol = 0 then gosub change_env_name : return
+  if scol = 6 then begin
+    v$=""
+    input "new value: ",v$
+    v = val(v$)
+    if v > 4095 then v = 4095
+    if v < 0 then v = 0
+    envs_pw(srow) = v
+    return
+  bend
+
+  if a$="+" then delta=1 : gosub incr_val
+  if a$="-" then delta=1 : gosub decr_val
+  return
+
+.edit_filter_field
+'-----------------
+  if fscol = 2 then v=filt_lp(fsrow):v=mod(v+1,2):filt_lp(fsrow)=v:return
+  if fscol = 3 then v=filt_bp(fsrow):v=mod(v+1,2):filt_bp(fsrow)=v:return
+  if fscol = 4 then v=filt_hp(fsrow):v=mod(v+1,2):filt_hp(fsrow)=v:return
+  if fscol = 6 then v=filt_dir(fsrow):v=mod(v+1,4):filt_dir(fsrow)=v:return
+
+  v$=""
+  input "new value: ",v$
+  if v$<>"" then begin
+    if fscol = 0 then filt_name$(fsrow) = v$
+    if fscol = 1 then begin
+      v = val(v$)
+      if v > 2047 then v = 2047
+      if v < 0 then v = 0
+      filt_freq(fsrow) = v
+    bend
+    if fscol = 5 then begin
+      v = val(v$)
+      if v > 15 then v = 15
+      if v < 0 then v = 0
+      filt_res(fsrow) = v
+    bend
+    if fscol = 6 then begin
+      v = val(v$)
+      if v > 3 then v = 3
+      if v < 0 then v = 0
+      filt_dir(fsrow) = v
+    bend
+    if fscol = 7 then begin
+      v = val(v$)
+      if v > 2047 then v = 2047
+      if v < 0 then v = 0
+      filt_min(fsrow) = v
+    bend
+    if fscol = 8 then begin
+      v = val(v$)
+      if v > 2047 then v = 2047
+      if v < 0 then v = 0
+      filt_sweep(fsrow) = v
+    bend
+  bend
+
+.check_piano_keys
+'----------------
+  ' apply filter
+  pstr$ = "x0"
+  if fsel <> -1 then pstr$ = "x1"
+
+  ' decide note length
+  pstr$ = pstr$ + dur$(sdur, DCHAR)
+
+  ' decide octave
+  pstr$ = pstr$ + "o" + str$(oct)
+
+  ' which note to play
+  for k = 0 to 11
+    if a$ = keys_in$(k) then pstr$ = pstr$ + keys_out$(k)
+  next k
+
+  if len(pstr$)>0 then begin
+    play "t"+str$(srow)+pstr$
+  bend
+
+  return
+
+.incr_val
+'--------
+  gosub get_val
+
+  maxv = 15
+  if scol = 5 then maxv = 4
+  if scol = 6 then maxv = 4095
+  v = v + delta
+  if v > maxv then v = maxv
+  gosub apply_val
+  return
+
+
+.decr_val
+'--------
+  gosub get_val
+
+  v = v - delta
+  if v < 0 then v = 0
+  gosub apply_val
+  return
+
+
+.incr_fval
+'---------
+  if fscol = 1 then begin
+    v = filt_freq(fsrow) + delta
+    if v > 2047 then v = 2047
+    filt_freq(fsrow) = v
+  bend
+
+  if fscol = 2 then filt_lp(fsrow) = 1
+  if fscol = 3 then filt_bp(fsrow) = 1
+  if fscol = 4 then filt_hp(fsrow) = 1
+
+  if fscol = 5 then begin
+    v = filt_res(fsrow) + delta
+    if v > 15 then v = 15
+    filt_res(fsrow) = v
+  bend
+
+  if fscol=6 and filt_dir(fsrow) < 3 then filt_dir(fsrow) = filt_dir(fsrow) + 1
+
+  if fscol=7 and filt_min(fsrow) < 2047 then begin
+    v = filt_min(fsrow) + delta
+    if v > 2047 then v = 2047
+    filt_min(fsrow) = v
+  bend
+    
+  if fscol=8 and filt_sweep(fsrow) < 2047 then begin
+    v = filt_sweep(fsrow) + delta
+    if v > 2047 then v = 2047
+    filt_sweep(fsrow) = v
+  bend
+
+  gosub apply_selected_filter
+  return
+
+
+.decr_fval
+'---------
+  if fscol = 1 then begin
+    v = filt_freq(fsrow) - delta
+    if v < 0 then v = 0
+    filt_freq(fsrow) = v
+  bend
+
+  if fscol = 2 then filt_lp(fsrow) = 0
+  if fscol = 3 then filt_bp(fsrow) = 0
+  if fscol = 4 then filt_hp(fsrow) = 0
+
+  if fscol = 5 then begin
+    v = filt_res(fsrow) - delta
+    if v < 0 then v = 0
+    filt_res(fsrow) = v
+  bend
+
+  if fscol=6 and filt_dir(fsrow) > 0 then filt_dir(fsrow) = filt_dir(fsrow) - 1
+
+  if fscol=7 and filt_min(fsrow) > 0 then begin
+    v = filt_min(fsrow) - delta
+    if v < 0 then v = 0
+    filt_min(fsrow) = v
+  bend
+
+  if fscol=8 and filt_sweep(fsrow) > 0 then begin
+    v = filt_sweep(fsrow) - delta
+    if v < 0 then v = 0
+    filt_sweep(fsrow) = v
+  bend
+
+  gosub apply_selected_filter
+  return
+
+
+.apply_val
+'---------
+  if scol=0 then envs_name$(srow) = v$
+  if scol=1 then envs_attack(srow) = v
+  if scol=2 then envs_decay(srow) = v
+  if scol=3 then envs_sustain(srow) = v
+  if scol=4 then envs_release(srow) = v
+  if scol=5 then envs_waveform(srow) = v
+  if scol=6 then envs_pw(srow) = v
+
+  row = srow
+  gosub set_env
+  return
+
+
+.set_env
+'-------
+  envelope row, envs_attack(row), envs_decay(row), envs_sustain(row), envs_release(row), envs_waveform(row), envs_pw(row)
+  return
+
+.runstop_trapper
+'---------------
+  if er=30 then resume  ' ignore run/stop
+  trap
+  print err$(er);" error"
+  print " in line";el
+  key on
+  end
+
+.chunk_sequencer
+'---------------
+  do while 1
+    gosub draw_sequence
+    gosub get_user_input_for_sequence
+
+    if a$ = KEY_MEGA_Q then exit
+  loop
+  return
+
+#declare sscol, s
+
+.draw_sequence
+'-------------
+  print "{x93}sequence editor"
+  print "---------------"
+  print "A)dd I)nsert D)elete, Edit=RTN, PlayAll=SHFT+RTN, Play=SPC - seqcnt = ";seqcnt
+  print "MEGA+Q: exit"
+  print " Cmd            Extra"         
+  print " ---            -----"
+
+  k = 0
+  do while k < seqcnt
+    if k >= 43 then cursor 40,5+(k-43)
+    if plyptr = k then print ">";:else print " ";
+
+    s=0:gosub highlight_selected_seq_column
+
+    ' chunk is a special CMD_*?
+    if seq_chunk(k) < 0 and abs(seq_chunk(k)) < CMD_MAX then begin
+      v$ = seq_cmdname$(abs(seq_chunk(k)))
+      s = 10-len(v$)
+      print v$;
+      do while s >= 0
+        print " ";
+        s = s - 1
+      loop
+    bend:else begin
+      print seq_chunk(k);KEY_TAB;
+    bend
+
+    s=1:gosub highlight_selected_seq_column
+    handled = 0
+    if seq_chunk(k) = CMD_FILTER then begin
+      handled = 1
+      if seq_extra(k) = -1 then print KEY_TAB;"<none>":else begin
+        print KEY_TAB;filt_name$(seq_extra(k))
+      bend
+    bend
+    if handled=0 and seq_chunk(k) = CMD_TEMPO then begin
+      handled = 1
+      print KEY_TAB;seq_extra(k)
+    bend
+    ' ELSE
+    if handled = 0 then begin 
+      print KEY_TAB;seq_extra(k)
+    bend
+
+    print KEY_REV_OFF;
+    k = k + 1
+  loop
+  
+  return
+
+.highlight_selected_seq_column
+'-----------------------------
+  if seqptr = k and sscol=s then print KEY_REV_ON;:else print KEY_REV_OFF;
+  return
+
+.get_user_input_for_sequence
+'---------------------------
+  gosub read_key_loop
+
+  if a$="a" then gosub add_chunk_to_seq
+  if a$="i" then gosub insert_chunk_to_seq
+  ' if a$="e" then gosub edit_chunk_seq
+  if a$="d" then gosub delete_chunk_seq
+
+  if a$=KEY_UP and seqptr > 0 then seqptr = seqptr - 1
+  if a$=KEY_DOWN and seqptr < seqcnt-1 then seqptr = seqptr + 1 
+  if a$=KEY_LEFT and sscol > 0 then sscol = sscol - 1
+  if a$=KEY_RIGHT and sscol < 1 then sscol = sscol + 1
+
+  if a$=KEY_SHIFT_RETURN then begin
+    plyptr = 0
+    plyflag = 1
+    chunk_rpt = 0
+    play
+    gosub set_all_env
+  bend
+
+  if a$=KEY_SPACE then begin
+    plyptr = seqptr
+    plyflag = 1
+    chunk_rpt = 0
+    play
+    gosub set_all_env
+  bend
+  if a$=KEY_RETURN then gosub edit_chunk_cell
+  if a$=KEY_ESCAPE then plyptr = -1 : plyflag = 0
+  return
+
+.delete_chunk_seq
+'----------------
+  if seqcnt = 0 then return
+
+  k = seqptr
+  do while k < seqcnt - 1
+    seq_chunk(k) = seq_chunk(k + 1)
+    seq_extra(k) = seq_extra(k + 1)
+    k = k + 1
+  loop
+
+  seqcnt = seqcnt - 1
+
+  if seqptr = seqcnt and seqptr>0 then seqptr = seqptr - 1
+  return
+
+.edit_chunk_seq
+'--------------
+  if seqcnt = 0 then return
+
+  print KEY_HOME;KEY_TAB;KEY_TAB;KEY_ESCAPE;"q";
+  v=0:input "chunk#: ", v
+  seq_chunk(seqptr) = v
+
+  print KEY_HOME;KEY_TAB;KEY_TAB;KEY_ESCAPE;"q";
+  v=-1:input "extra#: ", v
+  seq_extra(seqptr) = v
+  return
+
+.edit_chunk_cell
+'---------------
+  if seqcnt = 0 then return
+
+  print KEY_HOME;KEY_TAB;KEY_TAB;KEY_ESCAPE;"q";
+
+  if sscol = 0 then begin
+    v = seq_chunk(seqptr)
+    print "chunk#: ";KEY_ESCAPE;"^";v;KEY_ESCAPE;"{x5F}";
+    input "", v
+    seq_chunk(seqptr) = v
+  bend
+
+  if sscol = 1 then begin
+    v = seq_extra(seqptr)
+    print "extra#: ";KEY_ESCAPE;"^";v;KEY_ESCAPE;"{x5F}";
+    input "", v
+    seq_extra(seqptr) = v
+  bend
+
+  return
+
+
+.insert_chunk_to_seq
+'-------------------
+  seqcnt = seqcnt + 1
+
+  ' move all higher chunk sequences up one
+  k = seqcnt - 2
+  do while k >= seqptr
+    seq_chunk(k+1) = seq_chunk(k)
+    seq_extra(k+1) = seq_extra(k)
+    k = k - 1
+  loop
+
+  seq_chunk(seqptr) = 0
+  seq_extra(seqptr) = 0
+
+  return
+
+.add_chunk_to_seq
+'----------------
+  seqptr = seqcnt
+  seqcnt = seqcnt + 1
+  seq_chunk(seqptr) = 0
+  seq_extra(seqptr) = 0
+  return
+ÿ
