@@ -1,5 +1,5 @@
 megafoot.d81: getdat getbas getelevensrc
-	c1541 -format megafoot,mf d81 megafoot.d81 -attach megafoot.d81 -write foot.prg foot -write pal.bin -write level1-bg.bin -write level1-bg.dat -write player.bin -write player.dat -write player2.bin -write player2.dat -write player3.bin -write player3.dat -write player4.bin -write player4.dat -write duck.bin -write duck.dat -write grab.prg grab -write foot.el foot.el,s -write grabber.el grabber.el,s -write boxtest.el boxtest.el,s -write 11.defaults -write 11.edit -write 11.parse -write 11.post -write 11.settings -write autoboot.c65 -write 11.tokenize -write b65support.bin -write readme readme,s
+	c1541 -format megafoot,mf d81 megafoot.d81 -attach megafoot.d81 -write foot.prg foot -write pal.bin -write level1-bg.bin -write level1-bg.dat -write player.bin -write player.dat -write player2.bin -write player2.dat -write player3.bin -write player3.dat -write player4.bin -write player4.dat -write duck.bin -write duck.dat -write grab.prg grab -write foot.el foot.el,s -write grabber.el grabber.el,s -write melody.el melody.el,s -write boxtest.el boxtest.el,s -write 11.defaults -write 11.edit -write 11.parse -write 11.post -write 11.settings -write autoboot.c65 -write 11.tokenize -write b65support.bin -write readme readme,s
 
 getelevensrc:
 	cp /c/Users/gurcei/AppData/Roaming/xemu-lgb/mega65/hdos/11.D81 .
