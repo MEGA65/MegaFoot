@@ -97,6 +97,15 @@ FILTTYPE filt(10) = [ {x5F}
 #declare v1$, v2$, v3$, v4$, v5$, v6$
 #declare tmp
 
+#define OP_COPY = 0
+#define OP_MIX  = 1
+#define OP_SWAP = 2
+#define OP_FILL = 3
+
+#define SCRNPTRLSB = $d060
+#define SCRNPTRMSB = $d061
+#define SCRNPTRBNK = $d062
+
 .cmds
 #define CMD_TEMPO = -1
 #define CMD_FILTER = -2
@@ -106,7 +115,8 @@ FILTTYPE filt(10) = [ {x5F}
 #define CMD_ECHO_B  = -6   ' echo bass:   voice 3 on voice 6
 #define CMD_ECHO_OFF = -7
 #define CMD_ECHO_SZ = -8
-#define CMD_MAX = 9
+#define CMD_VOL = -9
+#define CMD_MAX = 10
 
 #declare seq_cmdname$(10)
 seq_cmdname$(1) = "TEMPO"
@@ -117,6 +127,7 @@ seq_cmdname$(5) = "ECHO_M2"
 seq_cmdname$(6) = "ECHO_B"
 seq_cmdname$(7) = "ECHO_OFF"
 seq_cmdname$(8) = "ECHO_SZ"
+seq_cmdname$(9) = "VOL"
 
 
 #declare seqcnt, seqptr
@@ -643,7 +654,7 @@ play : play ""
 '----------
   print "{x93}env editor";KEY_TAB;dur$(sdur, DNAME);KEY_TAB;"octave";oct
   print "----------"
-  print "-/+: decr/incr, RTN: edit, TAB: focus env/filter, MEGA+Q: exit"
+  print "-/+: decr/incr, </>: octave, RTN: edit, TAB: focus env/filter, MEGA+Q: exit"
   print
   print "   NAME";KEY_TAB;KEY_TAB;"ATTACK";KEY_TAB;"DECAY";KEY_TAB;"SUSTAIN";KEY_TAB;"RELEASE";KEY_TAB;
   print "WAVEFRM";KEY_TAB;"PULSEWIDTH"
@@ -847,6 +858,8 @@ play : play ""
   if k = CMD_ECHO_B  then echo_b = 1
   if k = CMD_ECHO_OFF then echo_m = 0 : echo_b = 0
   if k = CMD_ECHO_SZ then echo_sz = seq_extra(plyptr)
+
+  if k = CMD_VOL then v = seq_extra(plyptr) : vol v, v
 
   if chunk_rpt > 0 then chunk_rpt = chunk_rpt - 1
 
@@ -1159,7 +1172,7 @@ play : play ""
   print "{x93}sequence editor"
   print "---------------"
   print "A)dd I)nsert D)elete, Edit=RTN, PlayAll=SHFT+RTN, Play=SPC - seqcnt = ";seqcnt
-  print "MEGA+Q: exit"
+  print "C: edit CMD, MEGA+Q: exit"
   print " Cmd            Extra"         
   print " ---            -----"
 
@@ -1243,7 +1256,9 @@ play : play ""
     tempo tmpo%
   bend
   if a$=KEY_RETURN then gosub edit_chunk_cell
+  if a$="c" then gosub edit_chunk_cmd
   if a$=KEY_ESCAPE then plyptr = -1 : plyflag = 0
+
   return
 
 .delete_chunk_seq
@@ -1283,18 +1298,29 @@ play : play ""
 
   if sscol = 0 then begin
     v = seq_chunk(seqptr)
-    print "chunk#: ";KEY_ESCAPE;"^";v;KEY_ESCAPE;"{x5F}";
+    print "chunk#: ";KEY_ESCAPE;"^{x14}";v;KEY_ESCAPE;"{x5F}";
     input "", v
     seq_chunk(seqptr) = v
   bend
 
   if sscol = 1 then begin
     v = seq_extra(seqptr)
-    print "extra#: ";KEY_ESCAPE;"^";v;KEY_ESCAPE;"{x5F}";
+    print "extra#: ";KEY_ESCAPE;"^{x14}";v;KEY_ESCAPE;"{x5F}";
     input "", v
     seq_extra(seqptr) = v
   bend
 
+  return
+
+.edit_chunk_cmd
+'--------------
+  print KEY_CLR;
+  for row = 1 to CMD_MAX - 1
+    print row;":"; seq_cmdname$(row)
+  next row
+  print
+  input "cmd: ", v
+  seq_chunk(seqptr) = -v
   return
 
 
