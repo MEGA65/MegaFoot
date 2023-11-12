@@ -92,10 +92,12 @@ FILTTYPE filt(10) = [ {x5F}
 {x5F}
 ]
 
-#declare seq_chunk(100), seq_extra(100)
-#declare echo_m, echo_b, echo_sz = .05, chunk_rpt
+#declare seq_chunk(200), seq_extra(200)
+#declare echo_m, echo_b, echo_sz = .05, chunk_rpt, echo_delay
 #declare v1$, v2$, v3$, v4$, v5$, v6$
 #declare tmp
+#declare sscol, s, seq_offs
+
 
 #define OP_COPY = 0
 #define OP_MIX  = 1
@@ -116,7 +118,8 @@ FILTTYPE filt(10) = [ {x5F}
 #define CMD_ECHO_OFF = -7
 #define CMD_ECHO_SZ = -8
 #define CMD_VOL = -9
-#define CMD_MAX = 10
+#define CMD_DELAY = -10
+#define CMD_MAX = 11
 
 #declare seq_cmdname$(10)
 seq_cmdname$(1) = "TEMPO"
@@ -128,7 +131,7 @@ seq_cmdname$(6) = "ECHO_B"
 seq_cmdname$(7) = "ECHO_OFF"
 seq_cmdname$(8) = "ECHO_SZ"
 seq_cmdname$(9) = "VOL"
-
+seq_cmdname$(10) = "DELAY"
 
 #declare seqcnt, seqptr
 
@@ -207,6 +210,7 @@ dur$(D_SIXTEENTH, DNAME) = "sixteenth"
 dur$(D_SIXTEENTH, DCHAR) = "s"
 dur$(D_SIXTEENTH, DKEY)  = "5"
 
+#declare clip$, alt_key, limit, ret%, y, cp$(6)
 
 .keys
 '----
@@ -237,11 +241,16 @@ dur$(D_SIXTEENTH, DKEY)  = "5"
 #define KEY_CLR  = "{x93}"
 #define KEY_LOWERCASE = chr$(14)
 #define KEY_UPPERCASE = chr$(142)
+#define KEY_BEEP = chr$(7)
+#define KEY_INST = "{x94}"
+#define KEY_DEL  = "{x14}"
 
 .init
 '----
 print "{x93}";KEY_LOWERCASE;KEY_ESCAPE;"5";
 play : play ""
+background 0 : border 0
+color 5
 
 .main
 '----
@@ -256,6 +265,7 @@ play : play ""
   print "---------"
   print "<: prev chunk, >: next chunk, -/+ tempo, F7=env editor, F9/CTRL-P=seq editor"
   print "RTN: play curr voice, SHFT+RTN: play all voice, F1=load, F3=save, MEGA+Q=quit"
+  print "ALT-X/C/V: row cut/copy/paste, ESC-ESC: stop music, ALT-RTN: play from cursor"
   print
 
   gosub draw_current_chunk
@@ -504,6 +514,8 @@ play : play ""
   gosub read_key_loop
   key$ = a$
 
+  gosub check_alt_key_inputs
+
   ' down arrow?
   if key$ = KEY_DOWN and cursor_y<5 then begin
     cursor_y = cursor_y + 1
@@ -537,6 +549,7 @@ play : play ""
     esc_flag%=0
     if key$ = "j" then begin:cursor_x=0:bend
     if key$ = "k" then begin:cursor_x=len(v$(cursor_y,chunk_idx)):bend
+    if key$=KEY_ESCAPE then gosub stop_all_music
     key$=""
   bend
 
@@ -586,7 +599,114 @@ play : play ""
     gosub play_chunk_idx
   bend
 
+  if key$ = KEY_INST then begin
+    v1$ = v$(cursor_y, chunk_idx)
+    v1$ = left$(v1$,cursor_x) + mid$(v1$,cursor_x+2)
+    v$(cursor_y, chunk_idx) = v1$
+  bend
+
   gosub check_valid_key
+  return
+
+.check_alt_key_inputs
+'--------------------
+  alt_key = peek($d611) and 16
+
+  if alt_key = 0 then return
+
+  if key$="x" then clip$=v$(cursor_y, chunk_idx) : v$(cursor_y, chunk_idx) = ""
+  if key$="c" then clip$=v$(cursor_y, chunk_idx)
+  if key$="v" then v$(cursor_y, chunk_idx) = clip$
+  if key$="C" then gosub copy_all_voices_to_clipboard
+  if key$="V" then gosub paste_all_voices_from_clipboard
+
+  if key$=KEY_RETURN then begin
+    v1$ = mid$(v$(cursor_y, chunk_idx), cursor_x + 1)
+    tempo tmpo% : play v1$
+  bend
+
+  if key$="," then delta = -1 : gosub transpose_octave
+  if key$="." then delta = 1  : gosub transpose_octave
+  if key$="i" then gosub insert_chunk
+
+  key$ = ""
+  return
+
+.copy_all_voices_to_clipboard
+'----------------------------
+  for y = 0 to 5
+    cp$(y) = v$(y, chunk_idx)
+  next y
+  return
+
+.paste_all_voices_from_clipboard
+'-------------------------------
+  for y = 0 to 5
+    v$(y, chunk_idx) = cp$(y)
+  next y
+  return
+
+.insert_chunk
+'------------
+  for k = chunk_max-1 to chunk_idx + 1 step -1
+    for y = 0 to 5
+      v$(y, k) = v$(y, k-1)
+    next y
+  next k
+
+  for y = 0 to 5
+    v$(y, chunk_idx) = ""
+  next y
+
+  ' repair items in the sequence that are affected
+  for k = 0 to 100
+    if seq_chunk(k) >= chunk_idx then seq_chunk(k) = seq_chunk(k) + 1
+  next k
+
+  return
+
+.transpose_octave
+'----------------
+  v1$ = v$(cursor_y, chunk_idx)
+
+  limit = 0
+  if delta = 1 then limit = 6
+
+  ret% = 0
+  gosub can_transpose_octave
+
+  if ret% = 0 then print KEY_BEEP; : return
+
+  k = 0
+  do while k < len(v1$)
+    v2$ = mid$(v1$,k+1,1)
+    if v2$ = "o" and (k + 1) < len(v1$) then begin
+      v2$ = str$(val(mid$(v1$,k+2,1)) + delta)
+      v2$ = mid$(v2$,2)
+      v1$ = left$(v1$,k+1) + v2$ + mid$(v1$, k+3)
+    bend
+    k = k + 1
+  loop
+
+  v$(cursor_y, chunk_idx) = v1$
+
+  return
+
+.can_transpose_octave
+'--------------------
+  ret% = 1
+
+  k = 0
+  do while k < len(v1$)
+    v2$ = mid$(v1$,k+1,1)
+    if v2$ = "o" and (k+1) < len(v1$) then begin
+      v2$ = mid$(v1$,k+2,1)
+      if val(v2$) = limit then ret% = 0 : return
+    bend
+
+    k = k + 1
+  loop
+
   return
 
 .play_chunk_idx
@@ -597,6 +717,22 @@ play : play ""
   v4$ = v$(3,chunk_idx)
   v5$ = v$(4,chunk_idx)
   v6$ = v$(5,chunk_idx)
+
+  if echo_delay = 1 then begin
+    play v1$
+    sleep (echo_sz)
+    play ,v2$
+    sleep (echo_sz)
+    play ,,v3$
+    sleep (echo_sz)
+    play ,,,v4$
+    sleep (echo_sz)
+    play ,,,,v5$
+    sleep (echo_sz)
+    play ,,,,,v6$
+    sleep (echo_sz)
+    return
+  bend
 
   if echo_m = 0 and echo_b = 0 then begin
     play v1$, v2$, v3$, v4$, v5$, v6$
@@ -853,11 +989,12 @@ play : play ""
     fsel = k
     gosub apply_selected_filter
   bend
-  if k = CMD_ECHO_M1 then echo_m = 1
-  if k = CMD_ECHO_M2 then echo_m = 2
-  if k = CMD_ECHO_B  then echo_b = 1
+  if k = CMD_ECHO_M1 then echo_m = 1 : echo_delay = 0
+  if k = CMD_ECHO_M2 then echo_m = 2 : echo_delay = 0
+  if k = CMD_ECHO_B  then echo_b = 1 : echo_delay = 0
   if k = CMD_ECHO_OFF then echo_m = 0 : echo_b = 0
   if k = CMD_ECHO_SZ then echo_sz = seq_extra(plyptr)
+  if k = CMD_DELAY then echo_delay = 1 : echo_m = 0 : echo_b = 0
 
   if k = CMD_VOL then v = seq_extra(plyptr) : vol v, v
 
@@ -923,21 +1060,23 @@ play : play ""
 
 .apply_selected_filter
 '---------------------
-  curr_freq = filt_freq(fsrow)
+  if fsel = -1 then return
+
+  curr_freq = filt_freq(fsel)
   curr_dir = DIR_NONE
-  if   filt_dir(fsrow) = DIR_UP {x5F}
-    or filt_dir(fsrow) = DIR_OSC then begin
-    curr_freq = filt_min(fsrow)
+  if   filt_dir(fsel) = DIR_UP {x5F}
+    or filt_dir(fsel) = DIR_OSC then begin
+    curr_freq = filt_min(fsel)
     curr_dir = DIR_UP
   bend
-  if filt_dir(fsrow) = DIR_DOWN then begin
+  if filt_dir(fsel) = DIR_DOWN then begin
     curr_dir = DIR_DOWN
   bend
 
-  filter 1, filt_freq(fsrow), filt_lp(fsrow), {x5F} 
-         filt_bp(fsrow), filt_hp(fsrow), filt_res(fsrow)
-  filter 2, filt_freq(fsrow), filt_lp(fsrow), {x5F} 
-         filt_bp(fsrow), filt_hp(fsrow), filt_res(fsrow)
+  filter 1, filt_freq(fsel), filt_lp(fsel), {x5F} 
+         filt_bp(fsel), filt_hp(fsel), filt_res(fsel)
+  filter 2, filt_freq(fsel), filt_lp(fsel), {x5F} 
+         filt_bp(fsel), filt_hp(fsel), filt_res(fsel)
 
   return
 
@@ -1165,20 +1304,29 @@ play : play ""
   loop
   return
 
-#declare sscol, s
-
 .draw_sequence
 '-------------
   print "{x93}sequence editor"
   print "---------------"
   print "A)dd I)nsert D)elete, Edit=RTN, PlayAll=SHFT+RTN, Play=SPC - seqcnt = ";seqcnt
-  print "C: edit CMD, MEGA+Q: exit"
+  print "C: edit CMD, ESC: stop music, MEGA+Q: exit"
   print " Cmd            Extra"         
   print " ---            -----"
 
-  k = 0
+  if int((seqcnt-1)/43) > 1 and (int(seq_offs/43)+1) < int((seqcnt-1)/43) then begin
+    'if int((seqcnt-1) / 43) * 43 > seq_offs then begin
+      cursor 75, 5:print "--->"
+    'bend
+  bend
+  if seq_offs > 0 then begin
+    cursor 70, 5:print "<---"
+  bend
+
+  k = seq_offs
   do while k < seqcnt
-    if k >= 43 then cursor 40,5+(k-43)
+    if k > (seq_offs + 43 * 2 - 1) then k=seqcnt:goto nxt
+
+    if (k-seq_offs) >= 43 then cursor 40,6+(k-seq_offs-43)
     if plyptr = k then print ">";:else print " ";
 
     s=0:gosub highlight_selected_seq_column
@@ -1214,6 +1362,8 @@ play : play ""
     bend
 
     print KEY_REV_OFF;
+
+.nxt
     k = k + 1
   loop
   
@@ -1235,8 +1385,26 @@ play : play ""
 
   if a$=KEY_UP and seqptr > 0 then seqptr = seqptr - 1
   if a$=KEY_DOWN and seqptr < seqcnt-1 then seqptr = seqptr + 1 
-  if a$=KEY_LEFT and sscol > 0 then sscol = sscol - 1
-  if a$=KEY_RIGHT and sscol < 1 then sscol = sscol + 1
+  if a$=KEY_LEFT then begin
+    if sscol = 1 then begin
+      sscol = 0
+    bend:else begin
+      if (seqptr-43)>=0 then begin
+        sscol = 1
+        seqptr = seqptr - 43
+      bend
+    bend
+  bend
+  if a$=KEY_RIGHT then begin
+    if sscol = 0 then begin
+      sscol = 1
+    bend:else begin
+      if (seqptr+43) < seqcnt then begin
+        sscol = 0
+        seqptr = seqptr + 43
+      bend
+    bend
+  bend
 
   if a$=KEY_SHIFT_RETURN then begin
     plyptr = 0
@@ -1257,8 +1425,24 @@ play : play ""
   bend
   if a$=KEY_RETURN then gosub edit_chunk_cell
   if a$="c" then gosub edit_chunk_cmd
-  if a$=KEY_ESCAPE then plyptr = -1 : plyflag = 0
+  if a$=KEY_ESCAPE then gosub stop_all_music
+  if a$=KEY_HOME then seqptr = 0
+  if a$=KEY_CLR then seqptr = seqcnt-1
 
+  ' finally, adjust seq_offs if needbe
+  if (int(seqptr / 43) * 43) < seq_offs then seq_offs = seq_offs - 43
+  if (int(seqptr / 43) * 43) > (seq_offs+43) then seq_offs = seq_offs + 43
+
+  return
+
+.stop_all_music
+'--------------
+  plyptr = -1
+  plyflag = 0
+  play
+  gosub set_all_env
+  tempo tmpo%
+  gosub apply_selected_filter
   return
 
 .delete_chunk_seq
@@ -1298,14 +1482,22 @@ play : play ""
 
   if sscol = 0 then begin
     v = seq_chunk(seqptr)
-    print "chunk#: ";KEY_ESCAPE;"^{x14}";v;KEY_ESCAPE;"{x5F}";
+
+    v1$ = str$(v)
+    if left$(v1$,1) = " " then v1$=mid$(v1$,2)
+
+    print "chunk#: ";KEY_ESCAPE;"^";v1$;KEY_ESCAPE;"{x5F}";
     input "", v
     seq_chunk(seqptr) = v
   bend
 
   if sscol = 1 then begin
     v = seq_extra(seqptr)
-    print "extra#: ";KEY_ESCAPE;"^{x14}";v;KEY_ESCAPE;"{x5F}";
+
+    v1$ = str$(v)
+    if left$(v1$,1) = " " then v1$=mid$(v1$,2)
+
+    print "extra#: ";KEY_ESCAPE;"^";v1$;KEY_ESCAPE;"{x5F}";
     input "", v
     seq_extra(seqptr) = v
   bend
@@ -1314,13 +1506,15 @@ play : play ""
 
 .edit_chunk_cmd
 '--------------
+  v = -seq_chunk(seqptr)
   print KEY_CLR;
   for row = 1 to CMD_MAX - 1
     print row;":"; seq_cmdname$(row)
   next row
   print
   input "cmd: ", v
-  seq_chunk(seqptr) = -v
+
+  if v > 0 then seq_chunk(seqptr) = -v
   return
 
 

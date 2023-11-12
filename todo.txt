@@ -5,7 +5,7 @@ TODO:
 DONE- reverse joystick attack direction if player direction has changed
 DONE- sound effects
 - jumps
-IN PROGRESS- music
+DONE- music
   DONE- better filter controls during song
   DONE- save out filter presets and choices to file
   DONE- save out chunk order to file

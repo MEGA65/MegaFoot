@@ -370,6 +370,78 @@ bx_offs(1) = FRM_OFFSET_HB_TORSO
 bx_offs(2) = FRM_OFFSET_HB_FEET
 bx_offs(3) = FRM_OFFSET_HB_ATTACK
 
+.music_vars
+'----------
+#define chunk_max = 50
+#declare chunk_cnt, chunk_idx, vidx, tmpo%, row
+#declare echo_m, echo_b, echo_sz = .05, chunk_rpt, echo_delay
+#declare v$(5,chunk_max), v
+#declare song$
+#declare v1$, v2$, v3$, v4$, v5$, v6$
+#declare curr_freq, curr_dir
+
+#struct ENVTYPE name$, attack, decay, sustain, release, waveform, pw
+
+ENVTYPE envs(9) = [ {x5F}
+  [ "Piano",       0,  9,  0,  0,  2, 1536 ], {x5F}
+  [ "Accordion",  12,  0, 12,  0,  1,    0 ], {x5F}
+  [ "Calliope",    0,  0, 15,  0,  0,    0 ], {x5F}
+  [ "Drum",        0,  5,  5,  0,  3,    0 ], {x5F}
+  [ "Flute",       9,  4,  4,  0,  0,    0 ], {x5F}
+  [ "Guitar",      0,  9,  2,  1,  1,    0 ], {x5F}
+  [ "Harpsicrd",   0,  9,  0,  0,  2,  512 ], {x5F}
+  [ "Organ",       0,  9,  9,  0,  2, 2048 ], {x5F}
+  [ "Trumpet",     8,  9,  4,  1,  2,  512 ], {x5F}
+  [ "Xylophone",   0,  9,  0,  0,  0,    0 ]  {x5F}
+]
+
+#define DIR_NONE = 0
+#define DIR_UP   = 1
+#define DIR_DOWN = 2
+#define DIR_OSC  = 3
+
+#define F_OFF = 0
+#define F_ON  = 1
+
+#declare fsrow = 0, fsel = -1
+
+#struct FILTTYPE name$, freq, lp, bp, hp, res, dir, min, sweep
+
+FILTTYPE filt(10) = [ {x5F}
+  [ "lowp_up",    1000, F_ON,  F_OFF, F_OFF, 15, DIR_UP,   100, 10 ], {x5F}
+  [ "lowp_down",  1000, F_ON,  F_OFF, F_OFF, 15, DIR_DOWN, 100, 10 ], {x5F}
+  [ "lowp_osc",   1000, F_ON,  F_OFF, F_OFF, 15, DIR_OSC,  100, 10 ], {x5F}
+{x5F}
+  [ "bandp_up",   1000, F_OFF, F_ON,  F_OFF, 15, DIR_UP,   100, 10 ], {x5F}
+  [ "bandp_down", 1000, F_OFF, F_ON,  F_OFF, 15, DIR_DOWN, 100, 10 ], {x5F}
+  [ "bandp_osc",  1000, F_OFF, F_ON,  F_OFF, 15, DIR_OSC,  100, 10 ], {x5F}
+{x5F}
+  [ "highp_up",   1000, F_OFF, F_OFF, F_ON,  15, DIR_UP,   100, 10 ], {x5F}
+  [ "highp_down", 1000, F_OFF, F_OFF, F_ON,  15, DIR_DOWN, 100, 10 ], {x5F}
+  [ "highp_osc",  1000, F_OFF, F_OFF, F_ON,  15, DIR_OSC,  100, 10 ], {x5F}
+{x5F}
+  [ "spare_1",    0,    F_OFF, F_OFF, F_OFF, 0,  DIR_NONE, 0,   0  ], {x5F}
+  [ "spare_2",    0,    F_OFF, F_OFF, F_OFF, 0,  DIR_NONE, 0,   0  ], {x5F}
+{x5F}
+]
+
+#declare seqcnt
+#declare seq_chunk(200), seq_extra(200)
+
+#declare plyptr, plyflag
+
+#define CMD_TEMPO = -1
+#define CMD_FILTER = -2
+#define CMD_LOOP = -3
+#define CMD_ECHO_M1 = -4   ' echo melody: voice 1 on voice 4
+#define CMD_ECHO_M2 = -5   ' echo melody: voice 1 on voice 2 + 4 + 5
+#define CMD_ECHO_B  = -6   ' echo bass:   voice 3 on voice 6
+#define CMD_ECHO_OFF = -7
+#define CMD_ECHO_SZ = -8
+#define CMD_VOL = -9
+#define CMD_DELAY = -10
+#define CMD_MAX = 11
+
 '----
 .main
 '----
@@ -380,6 +452,9 @@ background 0
 gosub load_data
 palidx = 0
 gosub set_palette
+
+song$ = "chabi.p"
+gosub load_song
 
 .loop0
   gosub init_vars
@@ -1019,6 +1094,11 @@ gosub set_palette
   gosub game_logic
   gosub draw_energy_bars
 
+  ret% = 0
+  do while ret% = 0
+    gosub parse_current_seqptr
+  loop
+
   goto gameplay
   return
 
@@ -1323,5 +1403,208 @@ gosub set_palette
   bend:else begin
     ret% = 0
   bend
+  return
+
+'---------
+.load_song
+'---------
+  dopen #2,(song$),r,u8
+
+  ' load melody chunks
+  ' ------------------
+  input #2, chunk_cnt
+  for chunk_idx = 0 to chunk_cnt - 1
+    for vidx=0 to 5
+      input #2,v$(vidx, chunk_idx)
+    next vidx
+  next chunk_idx
+
+  input #2,tmpo%
+  
+  ' load envelopes
+  ' --------------
+  for row = 0 to 9
+    input #2, envs_name$(row)
+    input #2, envs_attack(row)
+    input #2, envs_decay(row)
+    input #2, envs_sustain(row)
+    input #2, envs_release(row)
+    input #2, envs_waveform(row)
+    input #2, envs_pw(row)
+    gosub set_env
+  next row
+  print
+
+  ' load filter presets
+  ' -------------------
+  for row = 0 to 10
+    input #2, filt_name$(row)
+    input #2, filt_freq(row)
+    input #2, filt_lp(row)
+    input #2, filt_bp(row)
+    input #2, filt_hp(row)
+    input #2, filt_res(row)
+    input #2, filt_dir(row)
+    input #2, filt_min(row)
+    input #2, filt_sweep(row)
+  next row
+
+  ' load sequence
+  ' -------------
+  seqcnt = 0
+  input #2, seqcnt
+  row = 0
+  do while row < seqcnt
+    input #2, seq_chunk(row)
+    input #2, seq_extra(row)
+    row = row + 1
+  loop
+
+
+  dclose #2
+
+  chunk_idx = 0
+  return
+
+
+'-------
+.set_env
+'-------
+  envelope row, envs_attack(row), envs_decay(row), envs_sustain(row), envs_release(row), envs_waveform(row), envs_pw(row)
+  return
+
+
+'--------------------
+.parse_current_seqptr
+'--------------------
+  ret% = 0
+  if rplay(1)<>0 then ret%=1:return
+
+  k = seq_chunk(plyptr)
+  
+  if k >= 0 then begin
+    chunk_idx = k
+    if chunk_rpt <= 0 then chunk_rpt = seq_extra(plyptr)
+    gosub play_chunk_idx
+    'sleep .1
+    ret% = 1
+  bend
+  if k = CMD_TEMPO then begin
+    k = seq_extra(plyptr)
+    tempo (k)
+    tmpo% = k
+  bend
+  if k = CMD_FILTER then begin
+    k = seq_extra(plyptr)
+    fsrow = k
+    fsel = k
+    gosub apply_selected_filter
+  bend
+  if k = CMD_ECHO_M1 then echo_m = 1 : echo_delay = 0
+  if k = CMD_ECHO_M2 then echo_m = 2 : echo_delay = 0
+  if k = CMD_ECHO_B  then echo_b = 1 : echo_delay = 0
+  if k = CMD_ECHO_OFF then echo_m = 0 : echo_b = 0
+  if k = CMD_ECHO_SZ then echo_sz = seq_extra(plyptr)
+  if k = CMD_DELAY then echo_delay = 1 : echo_m = 0 : echo_b = 0
+
+  if k = CMD_VOL then v = seq_extra(plyptr) : vol v, v
+
+  if chunk_rpt > 0 then chunk_rpt = chunk_rpt - 1
+
+  if chunk_rpt <= 0 then plyptr = plyptr + 1
+
+  if k = CMD_LOOP then plyptr = 0
+
+  if plyptr >= seqcnt then plyflag = 0 : plyptr = -1
+  return
+
+
+'--------------
+.play_chunk_idx
+'--------------
+  v1$ = v$(0,chunk_idx)
+  v2$ = v$(1,chunk_idx)
+  v3$ = v$(2,chunk_idx)
+  v4$ = v$(3,chunk_idx)
+  v5$ = v$(4,chunk_idx)
+  v6$ = v$(5,chunk_idx)
+
+  if echo_delay = 1 then begin
+    play v1$
+    sleep (echo_sz)
+    play ,v2$
+    sleep (echo_sz)
+    play ,,v3$
+    sleep (echo_sz)
+    play ,,,v4$
+    sleep (echo_sz)
+    play ,,,,v5$
+    sleep (echo_sz)
+    play ,,,,,v6$
+    sleep (echo_sz)
+    return
+  bend
+
+  if echo_m = 0 and echo_b = 0 then begin
+    play v1$, v2$, v3$, v4$, v5$, v6$
+    return
+  bend
+
+  if echo_m = 1 and echo_b = 0 then begin
+    play v1$, v2$, v3$,    , v5$, v6$
+    sleep (echo_sz)
+    play    ,    ,    , v1$
+  bend
+
+  if echo_m = 1 and echo_b = 1 then begin
+    play v1$, v2$, v3$,    , v5$
+    sleep (echo_sz)
+    play    ,    ,    , v1$,    , v3$
+  bend
+
+  if echo_m = 2 and echo_b = 0 then begin
+    play v1$,    , v3$,    ,    , v6$
+    sleep (echo_sz)
+    play    ,    ,    , v1$
+    sleep (echo_sz)
+    play    , v1$
+    sleep (echo_sz)
+    play    ,    ,    ,    , v1$
+  bend
+
+  if echo_m = 2 and echo_b = 1 then begin
+    play v1$,    , v3$
+    sleep (echo_sz)
+    play    ,    ,    , v1$
+    sleep (echo_sz)
+    play    , v1$,    ,    ,    , v3$
+    sleep (echo_sz)
+    play    ,    ,    ,    , v1$
+  bend
+
+  return
+
+
+'---------------------
+.apply_selected_filter
+'---------------------
+  if fsel = -1 then return
+
+  curr_freq = filt_freq(fsel)
+  curr_dir = DIR_NONE
+  if   filt_dir(fsel) = DIR_UP {x5F}
+    or filt_dir(fsel) = DIR_OSC then begin
+    curr_freq = filt_min(fsel)
+    curr_dir = DIR_UP
+  bend
+  if filt_dir(fsel) = DIR_DOWN then begin
+    curr_dir = DIR_DOWN
+  bend
+
+  filter 1, filt_freq(fsel), filt_lp(fsel), {x5F} 
+         filt_bp(fsel), filt_hp(fsel), filt_res(fsel)
+  filter 2, filt_freq(fsel), filt_lp(fsel), {x5F} 
+         filt_bp(fsel), filt_hp(fsel), filt_res(fsel)
+
   return
 ÿ
