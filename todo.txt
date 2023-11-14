@@ -1,17 +1,36 @@
 TODO:
-----
+====
+
+title screen:
+------------
+- Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
+- think of splashy title screen ideas to showcase BASIC 65 performance
+
+intro:
+-----
+- scrolly text intro
+- offer selection of main character (male or female)
+
+Moana's character name ideas:
+----------------------------
+- Goodie girl: Kwim
+- Goodie boy: Kwam
+- Baddie girl: Klu Klu
+- Baddie boy: Ble Ble
+- Duck: Kwak Kwak
+- Big Baddie: Kwano
+
+gameplay mechanics:
+------------------
 - make clouds move independently
 - make sun set slowly over time
-DONE- reverse joystick attack direction if player direction has changed
-DONE- sound effects
 - jumps
 DONE- music
   DONE- better filter controls during song
   DONE- save out filter presets and choices to file
   DONE- save out chunk order to file
-- scrolly text intro
-- title screen
-- Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
+DONE- reverse joystick attack direction if player direction has changed
+DONE- sound effects
 DONE- optimise 'grab' data to minimise memory use
   (and make room for baddie frames)
 DONE- add female player option
