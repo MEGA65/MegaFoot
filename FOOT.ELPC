@@ -452,6 +452,13 @@ FILTTYPE filt(10) = [ {x5F}
 
 #declare pjump, bjump
 
+#define BS_OFF = 0
+#define BS_SPAWN = 1
+#define BS_ALIVE = 2
+#define BS_DEAD = 3
+
+#declare next_baddie_time = 50, baddie_dead_time = 50, baddie_state
+
 '----
 .main
 '----
@@ -632,13 +639,17 @@ gosub load_song
 
   player_energy = 18
   lag_penergy = 0
-  baddie_energy = 18
+  baddie_energy = 0
   lag_benergy = 0
   pjump = 0
 
   player_mirror = 0
   baddie_mirror = 1
   bjump = 0
+
+  next_baddie_time = 50
+  baddie_dead_time = 50
+  baddie_state = BS_OFF
 
   return
 
@@ -730,9 +741,13 @@ gosub load_song
   if px < 25 then begin
     px = px + 1
   bend:else begin
-    if bx > 0 then begin
+    if bx > 0 and (baddie_state = BS_ALIVE or baddie_state = BS_DEAD) then begin
       gosub incr_offs
+
       bx = bx - 1
+    bend
+    if baddie_state = BS_OFF then begin
+      gosub incr_offs
     bend
   bend
 
@@ -759,8 +774,22 @@ gosub load_song
 '--------------
 .get_user_input
 '--------------
-  ' keyboard input
-  ' --------------
+  gosub keyboard_input
+
+  gosub joystick_input
+
+  if a$="x" then begin
+    kneel_flag = 0
+    player_anim = form_anim(player_form, FANIM_DIE)
+    player_frame = 0
+  bend
+
+  return
+
+
+'--------------
+.keyboard_input
+'--------------
   get a$
 
   if a$="," and palidx>0 then palidx=palidx-1:gosub set_palette
@@ -795,17 +824,18 @@ gosub load_song
     player_dat_fixed = player_dat_fixed + 1
     player_dat_idx = player_dat_fixed
   bend
+  return
 
-
-  ' joystick input
-  ' --------------
+'--------------
+.joystick_input
+'--------------
   jdir_raw = joy(2)
   jfire = jdir_raw and 128
   jdir = jdir_raw and $7f
   if jdir > 8 then jdir = 0  ' hide any nonsensicals
 
-  ' handle no input cases
-  ' ---------------------
+  ' handle no joystick input cases
+  ' ------------------------------
   if jdir_raw=0 and player_anim = ANIM_PKNEEL_DN then begin
     if player_frame >= max_frame(FORM_HUMAN, ANIM_PKNEEL_DN)-1 then begin
     kneel_flag = 0
@@ -850,13 +880,8 @@ gosub load_song
       player_frame = 0
     bend
   bend
-
-  if a$="x" then begin
-    kneel_flag = 0
-    player_anim = form_anim(player_form, FANIM_DIE)
-    player_frame = 0
-  bend
   return
+
 
 '-----------
 .draw_player
@@ -951,8 +976,10 @@ gosub load_song
 '--------------------------
 .consider_next_baddie_frame
 '--------------------------
-  if bx > (px + 5) then baddie_mirror = 1
-  if px > (bx + 5) then baddie_mirror = 0
+  if baddie_state = BS_ALIVE then begin
+    if bx > (px + 5) then baddie_mirror = 1
+    if px > (bx + 5) then baddie_mirror = 0
+  bend
 
   if baddie_anim <> ANIM_PWALK then begin
     baddie_frame = baddie_frame + 1
@@ -1216,7 +1243,9 @@ gosub load_song
 '------------
 .draw_sprites
 '------------
-  gosub draw_baddie
+  if baddie_state = BS_ALIVE or baddie_state = BS_DEAD then begin
+    gosub draw_baddie
+  bend
   gosub draw_player
   return
 
@@ -1224,8 +1253,54 @@ gosub load_song
 .game_logic
 '----------
   gosub consider_next_player_frame
-  gosub consider_next_baddie_frame
+  gosub assess_baddie_state
+
   return
+
+'-------------------
+.assess_baddie_state
+'-------------------
+  if baddie_state = BS_OFF then begin
+    ' consider when to spawn next baddie
+    next_baddie_time = next_baddie_time - 1
+    if next_baddie_time = 0 then baddie_state = BS_SPAWN
+    return
+  bend
+
+  if baddie_state = BS_SPAWN then begin
+    baddie_form = FORM_HUMAN
+    if baddie_dat_fixed = DAT_PLAYER2 then begin
+      baddie_dat_fixed = DAT_PLAYER3
+    bend: else begin
+      baddie_dat_fixed = DAT_PLAYER2
+    bend
+    baddie_dat_idx = baddie_dat_fixed
+    baddie_state = BS_ALIVE
+
+    bx = 60 : by = 23
+
+    baddie_energy = 18
+    lag_benergy = 0
+    bjump = 0
+
+    return
+  bend
+
+  if baddie_state = BS_ALIVE then begin
+    gosub consider_next_baddie_frame
+    if baddie_energy = 0 then baddie_state = BS_DEAD: baddie_dead_time=50
+    return
+  bend
+
+  if baddie_state = BS_DEAD then begin
+    gosub consider_next_baddie_frame
+    player_mirror = 0
+    baddie_dead_time = baddie_dead_time - 1
+    if baddie_dead_time = 0 then baddie_state = BS_OFF:next_baddie_time=50
+    return
+  bend
+  return
+
 
 '---------
 .page_flip

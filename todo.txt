@@ -1,35 +1,13 @@
 TODO:
 ====
 
-title screen:
-------------
-- Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
-- think of splashy title screen ideas to showcase BASIC 65 performance
-
-intro:
------
-- scrolly text intro
-- offer selection of main character (male or female)
-
-Moana's character name ideas:
-----------------------------
-- Goodie girl: Kwim
-- Goodie boy: Kwam
-- Baddie girl: Klu Klu
-- Baddie boy: Ble Ble
-- Duck: Kwak Kwak
-- Big Baddie: Kwano
-- ChunWi deity (to assist player?)
-
 gameplay mechanics:
 ------------------
 - make clouds move independently
 - make sun set slowly over time
-- jumps
-- make use of duck sprite in some way
-  (perhaps if player is hit by some magic, they turn into a duck for a minute)
-- more attack moves?
+IN PROGRESS- jumps
 - sequence multiple opponent challenges as the player progresses
+- allow players/baddies to change clothing colour
 
 DONE- music
   DONE- better filter controls during song
@@ -48,10 +26,24 @@ DONE- energy bars
 DONE- joystick support
 DONE- add in deft's player/baddie head art variations
 
-stretch goals
--------------
+title screen:
+------------
+- Ponder new name for game (Mega Fu / WOTIF / Exploding Fish)
+- think of splashy title screen ideas to showcase BASIC 65 performance
+
+intro:
+-----
+- scrolly text intro
+- offer selection of main character (male or female)
+
+2024 Goals
+----------
+- port Eleven's '11.parse' completely to Rust
 - story line cut scenes
 - add big baddie for final fight
+- more attack moves?
+- make use of duck sprite in some way
+  (perhaps if player is hit by some magic, they turn into a duck for a minute)
 
 Housekeeping todo:
 -----------------
@@ -67,6 +59,16 @@ DONE- update 'grabber' tool to:
   DONE- load/save hitboxes
   DONE- repair last remnants of $42000 access
 DONE- update code to load up newly structured layers + player-frames + hit-boxes
+
+Moana's character name ideas:
+----------------------------
+- Goodie girl: Kwim
+- Goodie boy: Kwam
+- Baddie girl: Klu Klu
+- Baddie boy: Ble Ble
+- Duck: Kwak Kwak
+- Big Baddie: Kwano
+- ChunWi deity (to assist player?)
 
 Other potential song options:
 ----------------------------
