@@ -223,6 +223,7 @@ offs_amount(6) = 2
 #define ANIM_PKPUNCH = 5
 #define ANIM_PKKICK = 6
 #define ANIM_PDIE = 7
+#define ANIM_PJUMP = 8
 
 #define ANIM_DWALK = 0
 #define ANIM_DQUACK = 1
@@ -277,6 +278,9 @@ anim_order(FORM_HUMAN, ANIM_PDIE, 6) = IMG_PDIE5
 anim_order(FORM_HUMAN, ANIM_PDIE, 7) = IMG_PDIE5
 anim_order(FORM_HUMAN, ANIM_PDIE, 8) = IMG_PDIE5
 
+anim_order(FORM_HUMAN, ANIM_PJUMP, 0) = IMG_PKNEEL1
+anim_order(FORM_HUMAN, ANIM_PJUMP, 1) = IMG_PKNEEL2
+
 anim_order(FORM_DUCK, ANIM_DWALK, 0) = IMG_DWALK1
 anim_order(FORM_DUCK, ANIM_DWALK, 1) = IMG_DWALK2
 anim_order(FORM_DUCK, ANIM_DWALK, 2) = IMG_DWALK3
@@ -308,6 +312,7 @@ max_frame(FORM_HUMAN, ANIM_PKNEEL_UP) = 2
 max_frame(FORM_HUMAN, ANIM_PKPUNCH) = 5
 max_frame(FORM_HUMAN, ANIM_PKKICK) = 5
 max_frame(FORM_HUMAN, ANIM_PDIE) = 9
+max_frame(FORM_HUMAN, ANIM_PJUMP) = 2
 
 max_frame(FORM_DUCK, ANIM_DWALK) = 4
 max_frame(FORM_DUCK, ANIM_DQUACK) = 5
@@ -325,8 +330,9 @@ max_frame(FORM_DUCK, ANIM_DDIE) = 9
 #define FANIM_KPUNCH = 5
 #define FANIM_KKICK = 6
 #define FANIM_DIE = 7
+#define FANIM_JUMP = 8
 
-#define FANIM_MAX = 8
+#define FANIM_MAX = 9
 
 #declare form_anim(FORM_MAX, FANIM_MAX)
 form_anim(FORM_HUMAN, FANIM_WALK) = ANIM_PWALK
@@ -337,9 +343,11 @@ form_anim(FORM_HUMAN, FANIM_KNEEL_UP) = ANIM_PKNEEL_UP
 form_anim(FORM_HUMAN, FANIM_KPUNCH) = ANIM_PKPUNCH
 form_anim(FORM_HUMAN, FANIM_KKICK) = ANIM_PKKICK
 form_anim(FORM_HUMAN, FANIM_DIE) = ANIM_PDIE
+form_anim(FORM_HUMAN, FANIM_JUMP) = ANIM_PJUMP
 
 form_anim(FORM_DUCK, FANIM_WALK) = ANIM_DWALK
 form_anim(FORM_DUCK, FANIM_PUNCH) = ANIM_DQUACK
+form_anim(FORM_DUCK, FANIM_KICK) = ANIM_DQUACK
 form_anim(FORM_DUCK, FANIM_DIE) = ANIM_DDIE
 
 #declare player_frame = 0
@@ -441,6 +449,8 @@ FILTTYPE filt(10) = [ {x5F}
 #define CMD_VOL = -9
 #define CMD_DELAY = -10
 #define CMD_MAX = 11
+
+#declare pjump, bjump
 
 '----
 .main
@@ -624,9 +634,11 @@ gosub load_song
   lag_penergy = 0
   baddie_energy = 18
   lag_benergy = 0
+  pjump = 0
 
   player_mirror = 0
   baddie_mirror = 1
+  bjump = 0
 
   return
 
@@ -644,7 +656,7 @@ gosub load_song
 
   frm_idx = 0
   do while frm_idx < max_frames(form)
-    print frm_idx;
+    'print frm_idx;
     frame_addr(dat_idx, frm_idx) = ptr
     frmw = peek(ptr + FRM_OFFSET_W)
     frmh = peek(ptr + FRM_OFFSET_H)
@@ -803,33 +815,47 @@ gosub load_song
   bend
   if jdir_raw = 0 then return
 
-  ' handle cases with some input
-  ' ----------------------------
-  if jdir=J_RIGHT then gosub move_right
-  if jdir=J_LEFT then gosub move_left
+  ' handle cases with some joystick input
+  ' -------------------------------------
 
-  if jfire=128 and jd(player_mirror, jdir)=JD_UP_FORWARD and player_anim = form_anim(player_form, FANIM_WALK) then begin
-    player_anim = form_anim(player_form, FANIM_PUNCH)
-    sound 1 + player_mirror * 3, 4000, 5, 1, 100, 1000, 3
-    if kneel_flag = 1 then player_anim = ANIM_PKPUNCH
-    player_frame = 0
+  ' no fire button moves
+  ' --------------------
+  if jfire=0 then begin
+    if jdir=J_RIGHT and pjump=0 then gosub move_right
+    if jdir=J_LEFT and pjump=0 then gosub move_left
+    if jdir=J_DOWN and player_anim = ANIM_PWALK then begin
+      player_anim = ANIM_PKNEEL_DN
+      player_frame = 0
+    bend
+    if jdir=J_UP and pjump=0 then begin
+      player_anim = ANIM_PJUMP
+      pjump = 1
+      player_frame = 0
+    bend
   bend
-  if jfire=128 and jd(player_mirror, jdir)=JD_DOWN_FORWARD and player_anim = ANIM_PWALK then begin
-    player_anim = ANIM_PKICK
-    sound 1 + player_mirror * 3, 2000, 5, 1, 100, 1000, 3
-    if kneel_flag = 1 then player_anim = ANIM_PKKICK
-    player_frame = 0
+
+  ' fire button moves
+  ' -----------------
+  if jfire = 128 and pjump=0 then begin
+    if jd(player_mirror, jdir)=JD_UP_FORWARD and player_anim = form_anim(player_form, FANIM_WALK) then begin
+      player_anim = form_anim(player_form, FANIM_PUNCH)
+      sound 1 + player_mirror * 3, 4000, 5, 1, 100, 1000, 3
+      if kneel_flag = 1 then player_anim = ANIM_PKPUNCH
+      player_frame = 0
+    bend
+    if jd(player_mirror, jdir)=JD_DOWN_FORWARD and player_anim = ANIM_PWALK then begin
+      player_anim = ANIM_PKICK
+      sound 1 + player_mirror * 3, 2000, 5, 1, 100, 1000, 3
+      if kneel_flag = 1 then player_anim = ANIM_PKKICK
+      player_frame = 0
+    bend
   bend
+
   if a$="x" then begin
     kneel_flag = 0
     player_anim = form_anim(player_form, FANIM_DIE)
     player_frame = 0
   bend
-  if jdir=J_DOWN and player_anim = ANIM_PWALK then begin
-    player_anim = ANIM_PKNEEL_DN
-    player_frame = 0
-  bend
-
   return
 
 '-----------
@@ -870,11 +896,33 @@ gosub load_song
   bend
 
   if player_anim = ANIM_PKNEEL_DN and jdir=J_DOWN then begin
-    if player_frame >= max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) then begin
-      player_frame = max_frame(FORM_HUMAN, ANIM_PKNEEL_DN) - 1
+    if player_frame >= max_frame(FORM_HUMAN, FANIM_KNEEL_DN) then begin
+      player_frame = max_frame(FORM_HUMAN, FANIM_KNEEL_DN) - 1
       kneel_flag = 1
     bend
     return
+  bend
+
+  if player_anim = ANIM_PJUMP then begin
+    if player_frame >= max_frame(FORM_HUMAN, FANIM_JUMP) then begin
+      player_frame = max_frame(FORM_HUMAN, FANIM_JUMP) - 1
+    bend
+  bend
+
+  if pjump > 0 then begin
+    if pjump = 1 then begin
+      py = py - 2
+      if py <= 0 then pjump = 2
+    bend
+    if pjump = 2 then begin
+      py = py + 2
+      if py >= 23 then begin
+        py = 23
+        pjump = 0
+        player_anim = form_anim(player_form, FANIM_WALK)
+        player_frame = 0
+      bend
+    bend
   bend
 
   if player_frame >= max_frame(player_form, player_anim) then begin

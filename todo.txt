@@ -19,12 +19,18 @@ Moana's character name ideas:
 - Baddie boy: Ble Ble
 - Duck: Kwak Kwak
 - Big Baddie: Kwano
+- ChunWi deity (to assist player?)
 
 gameplay mechanics:
 ------------------
 - make clouds move independently
 - make sun set slowly over time
 - jumps
+- make use of duck sprite in some way
+  (perhaps if player is hit by some magic, they turn into a duck for a minute)
+- more attack moves?
+- sequence multiple opponent challenges as the player progresses
+
 DONE- music
   DONE- better filter controls during song
   DONE- save out filter presets and choices to file
