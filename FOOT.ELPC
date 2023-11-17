@@ -458,6 +458,7 @@ FILTTYPE filt(10) = [ {x5F}
 #define BS_DEAD = 3
 
 #declare next_baddie_time = 50, baddie_dead_time = 50, baddie_state
+#declare baddie_visible
 
 '----
 .main
@@ -738,10 +739,12 @@ gosub load_song
 '----------
 .move_right
 '----------
-  if px < 25 then begin
+  baddie_visible = baddie_state = BS_ALIVE or baddie_state = BS_DEAD
+
+  if px < 25 or (baddie_state = BS_ALIVE and px < 59) then begin
     px = px + 1
   bend:else begin
-    if bx > 0 and (baddie_state = BS_ALIVE or baddie_state = BS_DEAD) then begin
+    if bx > 0 and baddie_visible then begin
       gosub incr_offs
 
       bx = bx - 1
@@ -750,6 +753,11 @@ gosub load_song
       gosub incr_offs
     bend
   bend
+
+  if baddie_state <> BS_ALIVE and px > 26 then begin
+    if mod(player_frame,2) = 0 then px = px - 1
+  bend
+
 
   kneel_flag = 0
   return
@@ -969,8 +977,13 @@ gosub load_song
     bend
   bend
 
-  if px > (bx + 5) then player_mirror = 1
-  if bx > (px + 5) then player_mirror = 0
+  if baddie_state = BS_ALIVE or baddie_state = BS_DEAD then begin
+    if px > (bx + 5) then player_mirror = 1
+    if bx > (px + 5) then player_mirror = 0
+  bend:else begin
+    player_mirror = 0
+  bend
+
   return
 
 '--------------------------
