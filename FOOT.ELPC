@@ -450,7 +450,7 @@ FILTTYPE filt(10) = [ {x5F}
 #define CMD_DELAY = -10
 #define CMD_MAX = 11
 
-#declare pjump, bjump
+#declare pjump, pjdir, bjump, bjdir
 
 #define BS_OFF = 0
 #define BS_SPAWN = 1
@@ -643,6 +643,8 @@ gosub load_song
   baddie_energy = 0
   lag_benergy = 0
   pjump = 0
+  pjdir = 0
+  bjdir = 0
 
   player_mirror = 0
   baddie_mirror = 1
@@ -865,9 +867,12 @@ gosub load_song
       player_anim = ANIM_PKNEEL_DN
       player_frame = 0
     bend
-    if jdir=J_UP and pjump=0 then begin
+    if (jdir=J_UP or jdir=J_UP_LEFT or jdir=J_UP_RIGHT) and pjump=0 then begin
       player_anim = ANIM_PJUMP
       pjump = 1
+      if jdir=J_UP then pjdir = 0
+      if jdir=J_UP_LEFT then pjdir = -1
+      if jdir=J_UP_RIGHT then pjdir = 1
       player_frame = 0
     bend
   bend
@@ -943,6 +948,8 @@ gosub load_song
   bend
 
   if pjump > 0 then begin
+    if pjdir>0 then gosub move_right:gosub move_right
+    if pjdir<0 then gosub move_left:gosub move_left
     if pjump = 1 then begin
       py = py - 2
       if py <= 0 then pjump = 2
