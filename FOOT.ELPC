@@ -1018,7 +1018,8 @@ gosub load_song
     return
   bend
 
-  if baddie_frame = ANIM_PDIE then return
+  if baddie_state <> BS_ALIVE then return
+  if baddie_anim = ANIM_PDIE then return
 
   gosub if_player_far_walk_closer
   if ret% = 1 then return
@@ -1292,8 +1293,11 @@ gosub load_song
 
     bx = 60 : by = 23
 
+    baddie_anim = form_anim(baddie_form, FANIM_WALK)
+    baddie_frame = 0
     baddie_energy = 18
     lag_benergy = 0
+    baddie_mirror = 1
     bjump = 0
 
     return
