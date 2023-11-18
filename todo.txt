@@ -5,12 +5,13 @@ gameplay mechanics:
 ------------------
 - make clouds move independently
 - make sun set slowly over time
-IN PROGRESS- jumps
+DONE- jumps
 DONE- sequence multiple opponent challenges as the player progresses
-- allow players/baddies to change clothing colour
+IN PROGRESS- allow players/baddies to change clothing colour
 - player must release prior attack move before triggering it again
 - reconsider joystick movement to trigger each move
   (current choices aren't ideal)
+- if player loses all energy, disallow movement and then game-over
 
 DONE- music
   DONE- better filter controls during song
